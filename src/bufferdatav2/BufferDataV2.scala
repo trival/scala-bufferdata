@@ -1,14 +1,19 @@
 package bufferdatav2
 
+import BinaryPrimitive.{F32, U8}
+
 object BufferDataV2:
-  val particleSchema: StructSchema =
-    StructSchema(PrimitiveKind.F32, PrimitiveKind.U8)
+  val particleSchema: StructLayout = struct(F32, U8)
+  val particleLayout: StructLayout = particleSchema
 
   def allocateParticles(count: Int): StructArray =
-    StructArray.allocate(particleSchema, count)
+    particleSchema.allocate(count)
+
+  def singleParticle(): StructView =
+    particleSchema()
 
   def populateParticles(array: StructArray): Unit =
     for i <- 0 until array.length do
-      val element = array(i)
-      element.setFloat32(0, i.toFloat * 2.0f)
-      element.setUint8(1, (i * 3) % 256)
+      val view = array(i)
+      view._0.set(i.toFloat * 2.0f)
+      view._1.set((i * 7) % 256)

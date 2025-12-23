@@ -2,11 +2,13 @@
 
 ## ✅ Current State
 
-1. **Minimal schema & buffer API (`bufferdatav2`)**
-   - `PrimitiveKind` exposes `F32` and `U8` with byte sizes and DataView helpers (`src/bufferdatav2/PrimitiveKind.scala`).
-   - `StructSchema` accumulates offsets/stride for arbitrary sequences of primitive fields (`src/bufferdatav2/StructSchema.scala`).
-   - `StructArray` + `StructInstance` manage ArrayBuffer allocation, indexing, and typed get/set operations (`src/bufferdatav2/StructArray.scala`).
-   - `BufferDataV2` provides a thin façade for the `(F32, U8)` particle example along with helper methods to allocate/populate buffers (`src/bufferdatav2/BufferDataV2.scala`).
+1. **API aligned with preparations sketch**
+   - `BinaryPrimitiveType`, `StructLayout`, `StructArray`, `StructView`, and `FieldView` live in `src/bufferdatav2/api.scala`, giving us the same shapes described in `src/preparations/api-design.scala`.
+   - `struct(...)` accepts primitives or nested layouts, computes offsets/stride at runtime, and supports chaining like `particle._0._1`.
+   - `StructLayout.allocate`, `StructLayout()` (single struct), `StructView.copyFrom`, and `FieldView.get/set` mirror the proposed ergonomics.
+
+2. **Particle proof of concept**
+   - `BufferDataV2` wraps the `(F32, U8)` schema, plus helpers to allocate/populate buffers for demos/tests (`src/bufferdatav2/BufferDataV2.scala`).
 
 2. **App wiring & JS export**
    - `BufferDataV2Demo` runs a console demo and exports `createBufferDataV2Particles` via `@JSExportGlobal` so we can validate Scala.js output (`src/Main.scala`).
@@ -17,21 +19,20 @@
 
 ## ⏭️ Planned / TODO
 
-1. **Extend primitive coverage**
-   - Add the remaining integer/float kinds (I8/I16/I32/U16/U32/F64) plus endianness flags.
+1. **Inline/zero-cost views**
+   - Replace the current runtime classes with opaque types + inline accessors so Scala.js erases the layers and emits direct DataView calls.
 
-2. **Inline/zero-cost views**
-   - Replace the current runtime checks in `StructInstance` with inline-generated accessors (opaque types + extension methods) so the JS output collapses to direct DataView calls.
+2. **Compile-time schema builder**
+   - Re-implement `struct(...)` using inline tuple/match-type computation so offsets and nested layouts are resolved at compile time rather than at runtime.
 
-3. **Tuple-based schema builders**
-   - Provide inline `struct(F32, U8, ...)` helpers that compute offsets/stride at compile time rather than using runtime `StructSchema` construction.
+3. **Primitive coverage & endianness**
+   - Fill out the enum with any missing primitives (signed/unsigned ints, F64 extras) and expose per-field endianness where it matters.
 
-4. **Nested structs**
-   - Allow schemas to contain other schemas, enabling layouts such as `(Vec2F32, Vec2F32, U8)` while reusing offsets/stride computation.
+4. **Named accessors**
+   - Layer in Scala 3 named tuples or literal field labels so callers can write `particle.position.x` in addition to `_0._0`.
 
-5. **Named accessors**
-   - Layer on Scala 3 named tuples or literal field labels to generate ergonomic `particle.position.x` style accessors without runtime overhead.
+5. **Performance polish**
+   - Add DataView reuse/buffering, field-level helpers (e.g., `float32(i)`), and micro-benchmarks or JS output inspection to validate the zero-cost goal.
 
-6. **Performance polish**
-   - Avoid repeated `new DataView(buffer)` by caching views or threading them through the API.
-   - Inspect emitted JavaScript to ensure the abstraction remains zero-cost once inline types are introduced.
+6. **Error reporting and safety**
+   - Provide clearer errors for out-of-bounds field indexes, schema mismatches in `copyFrom`, and optional debug-time bounds checks.

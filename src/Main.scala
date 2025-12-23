@@ -4,6 +4,7 @@ import scala.scalajs.js
 import scala.scalajs.js.annotation.{JSExportTopLevel as JSExportGlobal, JSExportTopLevel}
 import bufferdatav1.*
 import bufferdatav2.BufferDataV2
+import bufferdatav2.sizeInBytes
 
 @main def app(): Unit =
   println("Hello from Scala.js!")
@@ -73,12 +74,12 @@ object BufferDataV2Demo:
     val array = BufferDataV2.allocateParticles(10)
     BufferDataV2.populateParticles(array)
 
-    println(s"V2 schema stride: ${schema.stride} bytes")
+    println(s"V2 schema stride: ${schema.sizeInBytes} bytes")
     println("First three elements:")
     for i <- 0 until math.min(3, array.length) do
       val element = array(i)
-      val f32Value = element.getFloat32(0)
-      val u8Value = element.getUint8(1)
+      val f32Value = element._0.get.asInstanceOf[Float]
+      val u8Value = element._1.get.asInstanceOf[Int]
       println(s"  [$i] f32=$f32Value u8=$u8Value")
 
   @JSExportGlobal("createBufferDataV2Particles")
@@ -86,17 +87,17 @@ object BufferDataV2Demo:
     val array = BufferDataV2.allocateParticles(count)
     BufferDataV2.populateParticles(array)
     if array.length == 0 then
-      js.Dynamic.literal(count = 0, stride = schema.stride)
+      js.Dynamic.literal(count = 0, stride = schema.sizeInBytes)
     else
       js.Dynamic.literal(
         count = array.length,
-        stride = schema.stride,
+        stride = schema.sizeInBytes,
         first = js.Dynamic.literal(
-          f32 = array(0).getFloat32(0),
-          u8 = array(0).getUint8(1)
+          f32 = array(0)._0.get.asInstanceOf[Float],
+          u8 = array(0)._1.get.asInstanceOf[Int]
         ),
         last = js.Dynamic.literal(
-          f32 = array(array.length - 1).getFloat32(0),
-          u8 = array(array.length - 1).getUint8(1)
+          f32 = array(array.length - 1)._0.get.asInstanceOf[Float],
+          u8 = array(array.length - 1)._1.get.asInstanceOf[Int]
         )
       )
