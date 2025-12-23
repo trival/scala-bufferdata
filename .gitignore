@@ -1,0 +1,5 @@
+# Scala-CLI build artifacts
+.scala-build/
+.bsp/
+.metals/
+.claude/
