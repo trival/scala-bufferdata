@@ -1,10 +1,11 @@
 package example
 
 import scala.scalajs.js
-import scala.scalajs.js.annotation.{JSExportTopLevel as JSExportGlobal, JSExportTopLevel}
+import scala.scalajs.js.annotation.JSExportTopLevel
 import bufferdatav1.*
-import bufferdatav2.BufferDataV2
-import bufferdatav2.sizeInBytes
+import example.bufferdatav2.BufferDataV2
+import _root_.bufferdatav2.StructRef.*
+import _root_.bufferdatav2.FieldRef.*
 
 @main def app(): Unit =
   println("Hello from Scala.js!")
@@ -21,6 +22,7 @@ import bufferdatav2.sizeInBytes
 
 object BufferDataDemo:
   def runDemo(): Unit =
+    // Define struct layout: (F32, U8) - 5 bytes total
     given layout: StructLayout = StructLayout(F32, U8)
 
     println(s"Creating array of 10 structs (F32, U8)")
@@ -28,29 +30,28 @@ object BufferDataDemo:
     println(s"Array length: ${particles.length}")
     println(s"Struct size: ${layout.sizeInBytes} bytes")
 
-    // Populate
+    // Populate using typed accessors
     for i <- 0 until 10 do
-      particles(i)._0.set(i.toFloat * 1.5f)
-      particles(i)._1.set((i * 10).toShort)
+      particles(i)._0.asF32.set(i.toFloat * 1.5f)
+      particles(i)._1.asU8.set((i * 10).toShort)
 
-    // Read back
+    // Read back using typed accessors
     println("\nReading back values:")
     for i <- 0 until 10 do
-      val f32Val = particles(i)._0.get
-      val u8Val = particles(i)._1.get
+      val f32Val = particles(i)._0.asF32.get
+      val u8Val = particles(i)._1.asU8.get
       println(s"  particles($i): F32=$f32Val, U8=$u8Val")
 
-  // Export to JavaScript
-  @JSExportTopLevel("createParticleBuffer")
+  // Export to JavaScript for validation
+  @JSExportTopLevel("createParticleBufferV1")
   def createParticleBuffer(count: Int): js.Object =
     given layout: StructLayout = StructLayout(F32, U8)
-
     val particles = ArrayView.allocate(count)
 
     // Initialize with sample data
     for i <- 0 until count do
-      particles(i)._0.set(i.toFloat)
-      particles(i)._1.set((i % 256).toShort)
+      particles(i)._0.asF32.set(i.toFloat)
+      particles(i)._1.asU8.set((i % 256).toShort)
 
     // Return a JS object with info
     js.Dynamic.literal(
@@ -58,17 +59,17 @@ object BufferDataDemo:
       structSize = layout.sizeInBytes,
       totalBytes = count * layout.sizeInBytes,
       firstElement = js.Dynamic.literal(
-        f32 = particles(0)._0.get,
-        u8 = particles(0)._1.get
+        f32 = particles(0)._0.asF32.get,
+        u8 = particles(0)._1.asU8.get
       ),
       lastElement = js.Dynamic.literal(
-        f32 = particles(count - 1)._0.get,
-      u8 = particles(count - 1)._1.get
+        f32 = particles(count - 1)._0.asF32.get,
+        u8 = particles(count - 1)._1.asU8.get
       )
     )
 
 object BufferDataV2Demo:
-  private val schema = BufferDataV2.particleSchema
+  private val schema = BufferDataV2.particle
 
   def runDemo(): Unit =
     val array = BufferDataV2.allocateParticles(10)
@@ -82,7 +83,7 @@ object BufferDataV2Demo:
       val u8Value = element._1.get.asInstanceOf[Int]
       println(s"  [$i] f32=$f32Value u8=$u8Value")
 
-  @JSExportGlobal("createBufferDataV2Particles")
+  @JSExportTopLevel("createParticleBufferV2")
   def createBufferDataV2Particles(count: Int = 10): js.Object =
     val array = BufferDataV2.allocateParticles(count)
     BufferDataV2.populateParticles(array)

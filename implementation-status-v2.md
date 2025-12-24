@@ -2,37 +2,35 @@
 
 ## ✅ Current State
 
-1. **API aligned with preparations sketch**
-   - `BinaryPrimitiveType`, `StructLayout`, `StructArray`, `StructView`, and `FieldView` live in `src/bufferdatav2/api.scala`, giving us the same shapes described in `src/preparations/api-design.scala`.
-   - `struct(...)` accepts primitives or nested layouts, computes offsets/stride at runtime, and supports chaining like `particle._0._1`.
-   - `StructLayout.allocate`, `StructLayout()` (single struct), `StructView.copyFrom`, and `FieldView.get/set` mirror the proposed ergonomics.
+1. **Tuple-based schema API**
+   - Primitive kinds (`F32`, `U8`, etc.) live in `bufferdatav2.BufferPrimitive`; callers describe layouts with bare tuples (`val Particle = schema[(F32, U8)]`).
+   - `Schema[Fields]` (from `schema[...]`) exposes `sizeInBytes`, `allocate`, and `apply()` helpers while deriving offsets/stride at compile time (`src/bufferdatav2/api.scala`).
+   - `StructArray`, `StructRef` (opaque buffer offsets), and `FieldRef` now sit on opaque types + inline extensions, so `array(i)._0.set(...)` inlines to direct `DataView` calls even for nested schemas like `schema[((F32, F32), U8)]`.
 
 2. **Particle proof of concept**
-   - `BufferDataV2` wraps the `(F32, U8)` schema, plus helpers to allocate/populate buffers for demos/tests (`src/bufferdatav2/BufferDataV2.scala`).
+   - `BufferDataV2` wraps the `(F32, U8)` schema, plus helpers to allocate/populate buffers for demos/tests (`src/example/bufferdatav2/BufferDataV2.scala`).
 
-2. **App wiring & JS export**
+3. **App wiring & JS export**
    - `BufferDataV2Demo` runs a console demo and exports `createBufferDataV2Particles` via `@JSExportGlobal` so we can validate Scala.js output (`src/Main.scala`).
 
-3. **Tests**
-   - `BufferDataV2Test` covers schema math, allocation sizing, and round-trip read/write for the 10-element buffer proof-of-concept (`test/src/BufferDataV2Test.scala`).
+4. **Tests**
+   - `BufferDataV2Test` (now under `test/src/BufferDataV2Test.scala`, package `bufferdatav2tests`) exercises layout math, primitive access, nested schemas, and `copyFrom`.
    - Full test suite (`scala-cli test .`) is green.
 
 ## ⏭️ Planned / TODO
 
-1. **Inline/zero-cost views**
-   - Replace the current runtime classes with opaque types + inline accessors so Scala.js erases the layers and emits direct DataView calls.
+1. **Finalize zero-cost surface**
+   - Keep pushing opaque types further (e.g., remove remaining runtime pattern matches, inline primitive get/set helpers) and inspect emitted JS to confirm there are no intermediate allocations.
 
-2. **Compile-time schema builder**
-   - Re-implement `struct(...)` using inline tuple/match-type computation so offsets and nested layouts are resolved at compile time rather than at runtime.
+2. **Named accessors**
+   - Scala 3 “named tuples” desugar via `scala.NamedTuple.build`, and the resulting types do **not** conform to `Tuple`. Supporting `schema[(position: (F32, F32), life: U8)]` therefore requires decoding those `NamedTuple` encodings rather than relying on plain tuple recursion.
+   - Plan: add a compile-time extractor that maps a named tuple to `(label, value)` pairs first, then reuse the existing tuple machinery to compute offsets. Until that exists, callers should stick with anonymous tuples.
 
 3. **Primitive coverage & endianness**
-   - Fill out the enum with any missing primitives (signed/unsigned ints, F64 extras) and expose per-field endianness where it matters.
+   - Broaden `BufferPrimitive` to cover remaining signed/unsigned widths, control endianness per field, and add validation helpers.
 
-4. **Named accessors**
-   - Layer in Scala 3 named tuples or literal field labels so callers can write `particle.position.x` in addition to `_0._0`.
-
-5. **Performance polish**
+4. **Performance polish**
    - Add DataView reuse/buffering, field-level helpers (e.g., `float32(i)`), and micro-benchmarks or JS output inspection to validate the zero-cost goal.
 
-6. **Error reporting and safety**
+5. **Error reporting and safety**
    - Provide clearer errors for out-of-bounds field indexes, schema mismatches in `copyFrom`, and optional debug-time bounds checks.

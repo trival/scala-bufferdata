@@ -81,22 +81,10 @@ position.set(12.0f, 23.0f, 34.0f)
 - Support constructing standalone struct refs backed by their own `ArrayBuffer` (useful for staging) and copying slices between buffers: `vertexRef.copyFrom(otherVertexRef)` copies `stride` bytes using `DataView.setUint8` loops or typed array views.
 - Provide helpers to build parallel sequences of structs that share one backing buffer, plus APIs to extract or insert struct slices into foreign buffers for interop with WebGPU/WebGL upload pipelines.
 
-### Compile-Time Named Access
-- Extend the DSL with labelled fields so users can write:
-```scala
-val vertexType = struct(
-  field["position"](vec3Type),
-  field["uv"](uvec2Type),
-  field["color"](U8)
-)
-val vertex = Buffer(vertexType, length = 64)(0)
-vertex.position.set(12.0f, 23.0f, 34.0f)
-vertex.uv._0.set(42)
-vertex.color.set(255)
-```
-- `field["name"](schema)` captures the string literal at the type level. Inline derivation detects these labelled fields and emits `transparent inline` accessors like `def position = ...` without storing the name at runtime, so there is still zero abstraction cost.
-- Missing fields fail to compile (`vertex.foobar` is a compile error) because no such accessor exists. Numeric access (`vertex(0)`) remains available, so indexed and named styles compose.
-- Nested structs inherit named access automatically: `vertex.position.x` works because each accessor returns another inline-generated struct accessor while reusing the same underlying `ArrayBuffer`.
+### Named Tuples Caveat
+- Scala 3 named tuples (e.g. `(position: (F32, F32), life: U8)`) are *not* regular `Tuple`s. The compiler lowers them through `scala.NamedTuple.build` and the resulting type no longer conforms to `Tuple`.
+- Implication: our compile-time tuple recursion cannot “just work” with labelled tuples. We need extra machinery to decompose a named tuple (label/value pairs) into ordinary tuples before feeding them into the layout computation.
+- For the initial zero-cost proof we therefore stick to anonymous tuples. Named access remains on the roadmap, but it requires a dedicated extractor for the `NamedTuple` encoding.
 
 ## Schema Composition Strategy
 
