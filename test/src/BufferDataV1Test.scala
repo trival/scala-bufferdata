@@ -94,13 +94,13 @@ class BufferDataV1Test extends FunSuite:
     // Offsets are computed at compile time via match types
     // F32 at offset 0, U8 at offset 4, F64 at offset 5
     val array = struct[(F32, U8, F64)].allocate(1)
-    array(0)._0.set(1.0f)
-    array(0)._1.set(2: Short)
-    array(0)._2.set(3.0)
+    array(0)(0).set(1.0f)
+    array(0)(1).set(2: Short)
+    array(0)(2).set(3.0)
 
-    assertEqualsFloat(array(0)._0.get, 1.0f, 0.001f)
-    assertEquals(array(0)._1.get, 2.toShort)
-    assertEqualsDouble(array(0)._2.get, 3.0, 0.001)
+    assertEqualsFloat(array(0)(0).get, 1.0f, 0.001f)
+    assertEquals(array(0)(1).get, 2.toShort)
+    assertEqualsDouble(array(0)(2).get, 3.0, 0.001)
 
   // ==========================================================================
   // Phase 3: StructArray and StructRef Tests (Typed API)
@@ -118,12 +118,12 @@ class BufferDataV1Test extends FunSuite:
     val array = layout.allocate(1)
 
     // Write using typed accessors - no .asF32 needed!
-    array(0)._0.set(42.5f)
-    array(0)._1.set(200: Short)
+    array(0)(0).set(42.5f)
+    array(0)(1).set(200: Short)
 
     // Read back - types are inferred!
-    val f32Val: Float = array(0)._0.get
-    val u8Val: Short = array(0)._1.get
+    val f32Val: Float = array(0)(0).get
+    val u8Val: Short = array(0)(1).get
     assertEqualsFloat(f32Val, 42.5f, 0.001f)
     assertEquals(u8Val, 200.toShort)
 
@@ -133,39 +133,39 @@ class BufferDataV1Test extends FunSuite:
 
     // Write to various indices
     for i <- 0 until 100 do
-      array(i)._0.set(i.toFloat * 2.0f)
-      array(i)._1.set((i % 256).toShort)
+      array(i)(0).set(i.toFloat * 2.0f)
+      array(i)(1).set((i % 256).toShort)
 
     // Verify all values
     for i <- 0 until 100 do
-      assertEqualsFloat(array(i)._0.get, i.toFloat * 2.0f, 0.001f)
-      assertEquals(array(i)._1.get, (i % 256).toShort)
+      assertEqualsFloat(array(i)(0).get, i.toFloat * 2.0f, 0.001f)
+      assertEquals(array(i)(1).get, (i % 256).toShort)
 
   test("Typed StructRef with 3 fields"):
     val layout = struct[(F32, F32, U8)]
     val array = layout.allocate(1)
 
-    array(0)._0.set(1.0f)
-    array(0)._1.set(2.0f)
-    array(0)._2.set(3: Short)
+    array(0)(0).set(1.0f)
+    array(0)(1).set(2.0f)
+    array(0)(2).set(3: Short)
 
-    assertEqualsFloat(array(0)._0.get, 1.0f, 0.001f)
-    assertEqualsFloat(array(0)._1.get, 2.0f, 0.001f)
-    assertEquals(array(0)._2.get, 3.toShort)
+    assertEqualsFloat(array(0)(0).get, 1.0f, 0.001f)
+    assertEqualsFloat(array(0)(1).get, 2.0f, 0.001f)
+    assertEquals(array(0)(2).get, 3.toShort)
 
   test("Typed struct with multiple primitive types"):
     val layout = struct[(F32, F64, U8, I32)]
     val array = layout.allocate(1)
 
-    array(0)._0.set(1.5f)
-    array(0)._1.set(2.5)
-    array(0)._2.set(128: Short)
-    array(0)._3.set(-1000)
+    array(0)(0).set(1.5f)
+    array(0)(1).set(2.5)
+    array(0)(2).set(128: Short)
+    array(0)(3).set(-1000)
 
-    assertEqualsFloat(array(0)._0.get, 1.5f, 0.001f)
-    assertEqualsDouble(array(0)._1.get, 2.5, 0.001)
-    assertEquals(array(0)._2.get, 128.toShort)
-    assertEquals(array(0)._3.get, -1000)
+    assertEqualsFloat(array(0)(0).get, 1.5f, 0.001f)
+    assertEqualsDouble(array(0)(1).get, 2.5, 0.001)
+    assertEquals(array(0)(2).get, 128.toShort)
+    assertEquals(array(0)(3).get, -1000)
 
   // ==========================================================================
   // Phase 4: Single Struct Shorthand
@@ -175,11 +175,11 @@ class BufferDataV1Test extends FunSuite:
     val layout = struct[(F32, U8)]
     val single = layout()
 
-    single._0.set(123.456f)
-    single._1.set(42: Short)
+    single(0).set(123.456f)
+    single(1).set(42: Short)
 
-    assertEqualsFloat(single._0.get, 123.456f, 0.001f)
-    assertEquals(single._1.get, 42.toShort)
+    assertEqualsFloat(single(0).get, 123.456f, 0.001f)
+    assertEquals(single(1).get, 42.toShort)
 
   // ==========================================================================
   // Phase 5: Nested Struct Support (Typed)
@@ -202,13 +202,13 @@ class BufferDataV1Test extends FunSuite:
     val array = struct[Particle].allocate(1)
 
     // Access nested Vec2 fields through position - types inferred!
-    array(0)._0._0.set(10.0f)  // position.x
-    array(0)._0._1.set(20.0f)  // position.y
-    array(0)._1.set(100: Short)  // life
+    array(0)(0)(0).set(10.0f) // position.x
+    array(0)(0)(1).set(20.0f) // position.y
+    array(0)(1).set(100: Short) // life
 
-    val x: Float = array(0)._0._0.get
-    val y: Float = array(0)._0._1.get
-    val life: Short = array(0)._1.get
+    val x: Float = array(0)(0)(0).get
+    val y: Float = array(0)(0)(1).get
+    val life: Short = array(0)(1).get
 
     assertEqualsFloat(x, 10.0f, 0.001f)
     assertEqualsFloat(y, 20.0f, 0.001f)
@@ -216,8 +216,8 @@ class BufferDataV1Test extends FunSuite:
 
   test("Typed deeply nested structs"):
     type Vec2 = (F32, F32)
-    type Transform = (Vec2, Vec2)  // position, velocity
-    type Entity = (Transform, U8)  // transform, health
+    type Transform = (Vec2, Vec2) // position, velocity
+    type Entity = (Transform, U8) // transform, health
 
     val vec2Layout = struct[Vec2]
     val transformLayout = struct[Transform]
@@ -228,17 +228,17 @@ class BufferDataV1Test extends FunSuite:
     assertEquals(entityLayout.sizeInBytes, 17)
 
     val entities = entityLayout.allocate(1)
-    entities(0)._0._0._0.set(1.0f)  // transform.position.x
-    entities(0)._0._0._1.set(2.0f)  // transform.position.y
-    entities(0)._0._1._0.set(3.0f)  // transform.velocity.x
-    entities(0)._0._1._1.set(4.0f)  // transform.velocity.y
-    entities(0)._1.set(255: Short)  // health
+    entities(0)(0)(0)(0).set(1.0f) // transform.position.x
+    entities(0)(0)(0)(1).set(2.0f) // transform.position.y
+    entities(0)(0)(1)(0).set(3.0f) // transform.velocity.x
+    entities(0)(0)(1)(1).set(4.0f) // transform.velocity.y
+    entities(0)(1).set(255: Short) // health
 
-    assertEqualsFloat(entities(0)._0._0._0.get, 1.0f, 0.001f)
-    assertEqualsFloat(entities(0)._0._0._1.get, 2.0f, 0.001f)
-    assertEqualsFloat(entities(0)._0._1._0.get, 3.0f, 0.001f)
-    assertEqualsFloat(entities(0)._0._1._1.get, 4.0f, 0.001f)
-    assertEquals(entities(0)._1.get, 255.toShort)
+    assertEqualsFloat(entities(0)(0)(0)(0).get, 1.0f, 0.001f)
+    assertEqualsFloat(entities(0)(0)(0)(1).get, 2.0f, 0.001f)
+    assertEqualsFloat(entities(0)(0)(1)(0).get, 3.0f, 0.001f)
+    assertEqualsFloat(entities(0)(0)(1)(1).get, 4.0f, 0.001f)
+    assertEquals(entities(0)(1).get, 255.toShort)
 
   // ==========================================================================
   // Phase 6: copyFrom and sliceBuffer
@@ -249,22 +249,22 @@ class BufferDataV1Test extends FunSuite:
     val array = layout.allocate(2)
 
     // Set up source
-    array(0)._0.set(99.9f)
-    array(0)._1.set(77: Short)
+    array(0)(0).set(99.9f)
+    array(0)(1).set(77: Short)
 
     // Copy to destination
     array(1).copyFrom(array(0))
 
     // Verify copy
-    assertEqualsFloat(array(1)._0.get, 99.9f, 0.001f)
-    assertEquals(array(1)._1.get, 77.toShort)
+    assertEqualsFloat(array(1)(0).get, 99.9f, 0.001f)
+    assertEquals(array(1)(1).get, 77.toShort)
 
   test("Typed StructRef.sliceBuffer creates independent buffer"):
     val layout = struct[(F32, U8)]
     val array = layout.allocate(1)
 
-    array(0)._0.set(123.0f)
-    array(0)._1.set(45: Short)
+    array(0)(0).set(123.0f)
+    array(0)(1).set(45: Short)
 
     // Extract slice
     val slice = array(0).sliceBuffer
@@ -282,11 +282,11 @@ class BufferDataV1Test extends FunSuite:
 
     val particle = struct[Particle]()
 
-    particle._0._0.set(10.0f)
-    particle._0._1.set(20.0f)
+    particle(0)(0).set(10.0f)
+    particle(0)(1).set(20.0f)
 
     // Extract just the Vec2 portion
-    val vec2Slice = particle._0.sliceBuffer
+    val vec2Slice = particle(0).sliceBuffer
 
     assertEquals(vec2Slice.byteLength, 8)
 
@@ -301,6 +301,58 @@ class BufferDataV1Test extends FunSuite:
     val rawBuffer = array.arrayBuffer
     assertEquals(rawBuffer.byteLength, 50)
 
+  test("sliceBuffer creates independent copy, copyFrom transfers back"):
+    type Vec2 = (F32, F32)
+    type Particle = (Vec2, U8)
+    val layout = struct[Particle]
+
+    // 1. Create a StructArray of Particles
+    val particles = layout.allocate(3)
+    particles(0)(0)(0).set(10.0f) // particle 0: pos.x
+    particles(0)(0)(1).set(20.0f) // particle 0: pos.y
+    particles(0)(1).set(100: Short) // particle 0: life
+    particles(1)(0)(0).set(30.0f) // particle 1: pos.x
+    particles(1)(0)(1).set(40.0f) // particle 1: pos.y
+    particles(1)(1).set(200: Short) // particle 1: life
+    particles(2)(0)(0).set(0.0f) // particle 2: zeroed
+    particles(2)(0)(1).set(0.0f)
+    particles(2)(1).set(0: Short)
+
+    // 2. Create a single particle from a slice of particle 1
+    val slicedBuffer = particles(1).sliceBuffer
+    val detachedParticle = layout.fromBuffer(slicedBuffer)
+
+    // Verify slice has correct initial values
+    assertEqualsFloat(detachedParticle(0)(0).get, 30.0f, 0.001f)
+    assertEqualsFloat(detachedParticle(0)(1).get, 40.0f, 0.001f)
+    assertEquals(detachedParticle(1).get, 200.toShort)
+
+    // 3. Modify the detached struct
+    detachedParticle(0)(0).set(999.0f)
+    detachedParticle(0)(1).set(888.0f)
+    detachedParticle(1).set(77: Short)
+
+    // 4. Verify original particle 1 was NOT modified (independent buffer)
+    assertEqualsFloat(particles(1)(0)(0).get, 30.0f, 0.001f)
+    assertEqualsFloat(particles(1)(0)(1).get, 40.0f, 0.001f)
+    assertEquals(particles(1)(1).get, 200.toShort)
+
+    // 5. Copy the modified detached particle to particle 2
+    particles(2).copyFrom(detachedParticle)
+
+    // 6. Verify particle 2 now has the modified values
+    assertEqualsFloat(particles(2)(0)(0).get, 999.0f, 0.001f)
+    assertEqualsFloat(particles(2)(0)(1).get, 888.0f, 0.001f)
+    assertEquals(particles(2)(1).get, 77.toShort)
+
+    // 7. Verify particle 0 and 1 are still unchanged
+    assertEqualsFloat(particles(0)(0)(0).get, 10.0f, 0.001f)
+    assertEqualsFloat(particles(0)(0)(1).get, 20.0f, 0.001f)
+    assertEquals(particles(0)(1).get, 100.toShort)
+    assertEqualsFloat(particles(1)(0)(0).get, 30.0f, 0.001f)
+    assertEqualsFloat(particles(1)(0)(1).get, 40.0f, 0.001f)
+    assertEquals(particles(1)(1).get, 200.toShort)
+
   // ==========================================================================
   // Phase 7: Named Field Access via Extensions
   // ==========================================================================
@@ -311,28 +363,28 @@ class BufferDataV1Test extends FunSuite:
   // Define types
   type Vec2 = (F32, F32)
   type Particle = (Vec2, U8)
-  type Transform = (Vec2, Vec2)  // position, velocity
-  type Entity = (Transform, U8)  // transform, health
+  type Transform = (Vec2, Vec2) // position, velocity
+  type Entity = (Transform, U8) // transform, health
 
   // Extensions for Vec2 - only need StructRef since nested access returns StructRef!
   extension (v: StructRef[Vec2])
-    inline def x = v._0
-    inline def y = v._1
+    inline def x = v(0)
+    inline def y = v(1)
 
   // Extensions for Particle
   extension (p: StructRef[Particle])
-    inline def pos = p._0
-    inline def life = p._1
+    inline def pos = p(0)
+    inline def life = p(1)
 
   // Extensions for Transform - only need StructRef
   extension (t: StructRef[Transform])
-    inline def position = t._0
-    inline def velocity = t._1
+    inline def position = t(0)
+    inline def velocity = t(1)
 
   // Extensions for Entity
   extension (e: StructRef[Entity])
-    inline def transform = e._0
-    inline def health = e._1
+    inline def transform = e(0)
+    inline def health = e(1)
 
   test("Named extensions on single struct"):
     val v = struct[Vec2]()
@@ -403,26 +455,63 @@ class BufferDataV1Test extends FunSuite:
     val p = struct[Particle]()
 
     // Can mix named and index-based access
-    p.pos.x.set(10.0f)      // named
-    p._0._1.set(20.0f)      // index-based for y
-    p.life.set(50: Short)   // named
+    p.pos.x.set(10.0f) // named
+    p(0)(1).set(20.0f) // index-based for y
+    p.life.set(50: Short) // named
 
     assertEqualsFloat(p.pos.x.get, 10.0f, 0.001f)
-    assertEqualsFloat(p.pos.y.get, 20.0f, 0.001f)  // read via named
-    assertEqualsFloat(p._0._1.get, 20.0f, 0.001f)  // same value via index
+    assertEqualsFloat(p.pos.y.get, 20.0f, 0.001f) // read via named
+    assertEqualsFloat(p(0)(1).get, 20.0f, 0.001f) // same value via index
     assertEquals(p.life.get, 50.toShort)
+
+  test("Assignment operator := works as alias for set"):
+    val p = struct[Particle]()
+
+    // Use := instead of .set()
+    p.pos.x := 100.0f
+    p.pos.y := 200.0f
+    p.life := (50: Short)
+
+    assertEqualsFloat(p.pos.x.get, 100.0f, 0.001f)
+    assertEqualsFloat(p.pos.y.get, 200.0f, 0.001f)
+    assertEquals(p.life.get, 50.toShort)
+
+  test("Apply method () works as alias for get and set"):
+    val p = struct[Particle]()
+
+    // Use apply(value) to set
+    p.pos.x(100.0f)
+    p.pos.y(200.0f)
+    p.life(50: Short)
+
+    // Use apply() to get
+    val x: Float = p.pos.x()
+    val y: Float = p.pos.y()
+    val life: Short = p.life()
+
+    assertEqualsFloat(x, 100.0f, 0.001f)
+    assertEqualsFloat(y, 200.0f, 0.001f)
+    assertEquals(life, 50.toShort)
 
   // ==========================================================================
   // Helper methods
   // ==========================================================================
 
-  private def assertEqualsFloat(actual: Float, expected: Float, delta: Float): Unit =
+  private def assertEqualsFloat(
+      actual: Float,
+      expected: Float,
+      delta: Float
+  ): Unit =
     assert(
       math.abs(actual - expected) <= delta,
       s"Expected ~$expected within $delta, got $actual"
     )
 
-  private def assertEqualsDouble(actual: Double, expected: Double, delta: Double): Unit =
+  private def assertEqualsDouble(
+      actual: Double,
+      expected: Double,
+      delta: Double
+  ): Unit =
     assert(
       math.abs(actual - expected) <= delta,
       s"Expected ~$expected within $delta, got $actual"

@@ -20,8 +20,8 @@ val velocities = Vec2.allocate(1000)
 val single = Vec2()  // Shorthand for single struct
 
 // Zero-cost field access - offsets computed at compile time
-positions(i)._0.set(x)  // Compiles to: view.setFloat32(i*8+0, x, true)
-positions(i)._1.set(y)  // Compiles to: view.setFloat32(i*8+4, y, true)
+positions(i)(0).set(x)  // Compiles to: view.setFloat32(i*8+0, x, true)
+positions(i)(1).set(y)  // Compiles to: view.setFloat32(i*8+4, y, true)
 ```
 
 ### Architecture
@@ -31,17 +31,19 @@ positions(i)._1.set(y)  // Compiles to: view.setFloat32(i*8+4, y, true)
    - `FieldOffset[Fields, N]` - computes field offset at compile time
    - `FieldSize[T]` - computes field size at compile time
    - `ValueType[T]` - maps type to Scala value type
+   - `FieldAccess[T]` - returns `StructRef[T]` for tuples, `PrimitiveRef[T]` for primitives
 
 2. **Minimal Runtime Types**
    - `StructArray[Fields] = (DataView, Int)` - just view + count
    - `StructRef[Fields] = (DataView, Int)` - just view + baseOffset
-   - `FieldRef[T] = (DataView, Int)` - just view + absoluteOffset
+   - `PrimitiveRef[T] = (DataView, Int)` - just view + absoluteOffset
    - `StructLayout[Fields]` - phantom type carrier, no data
 
 3. **All Offsets are Compile-Time Constants**
    ```scala
-   inline def _0: FieldRef[Tuple.Elem[Fields, 0]] =
-     (s._1, s._2 + constValue[FieldOffset[Fields, 0]])  // Constant!
+   transparent inline def apply(n: Int): FieldAccess[Tuple.Elem[Fields, n.type]] =
+     // n.type is the singleton literal type (0, 1, 2...) - constValue resolves at compile time!
+     (s._1, s._2 + constValue[FieldOffset[Fields, n.type]])
    ```
 
 ### Generated JavaScript Comparison
@@ -77,17 +79,17 @@ val array = particleLayout.allocate(100)
 val single = particleLayout()
 
 // Type-safe access (types inferred, offsets compile-time)
-array(i)._0._0.set(x)           // position.x
-array(i)._0._1.set(y)           // position.y
-array(i)._1.set(life)           // life
+array(i)(0)(0).set(x)           // position.x
+array(i)(0)(1).set(y)           // position.y
+array(i)(1).set(life)           // life
 
-val x: Float = array(i)._0._0.get
-val life: Short = array(i)._1.get
+val x: Float = array(i)(0)(0).get
+val life: Short = array(i)(1).get
 
 // Hot loop - no bounds check overhead
 var i = 0
 while i < array.length do
-  array(i)._0.set(values(i))
+  array(i)(0).set(values(i))
   i += 1
 
 // Utilities
@@ -154,14 +156,14 @@ type Vec2 = (F32, F32)
 type Particle = (Vec2, U8)
 
 // Add named accessors via extension - only need StructRef!
-// Nested tuple access automatically returns StructRef, not FieldRef
+// Nested tuple access automatically returns StructRef, not PrimitiveRef
 extension (p: StructRef[Particle])
-  inline def pos = p._0   // Returns StructRef[Vec2]
-  inline def life = p._1  // Returns FieldRef[U8]
+  inline def pos = p(0)   // Returns StructRef[Vec2]
+  inline def life = p(1)  // Returns PrimitiveRef[U8]
 
 extension (v: StructRef[Vec2])
-  inline def x = v._0     // Returns FieldRef[F32]
-  inline def y = v._1     // Returns FieldRef[F32]
+  inline def x = v(0)     // Returns PrimitiveRef[F32]
+  inline def y = v(1)     // Returns PrimitiveRef[F32]
 
 // Usage - zero-cost .x syntax!
 val particles = struct[Particle].allocate(100)
@@ -179,23 +181,23 @@ This approach is:
 
 ### Key Design: StructRef for Nested Tuples
 
-When accessing a field that is itself a tuple, you get `StructRef[T]` instead of `FieldRef[T]`:
+When accessing a field that is itself a tuple, you get `StructRef[T]` instead of `PrimitiveRef[T]`:
 
 ```scala
 type Particle = (Vec2, U8)  // Vec2 is (F32, F32)
 
 val p = struct[Particle]()
-p._0    // Returns StructRef[Vec2], NOT FieldRef[Vec2]
-p._1    // Returns FieldRef[U8] (primitive)
+p(0)    // Returns StructRef[Vec2], NOT PrimitiveRef[Vec2]
+p(1)    // Returns PrimitiveRef[U8] (primitive)
 ```
 
-This means you only need one set of extensions per nested struct type - no need for duplicate extensions on both `StructRef` and `FieldRef`.
+This means you only need one set of extensions per nested struct type - no need for duplicate extensions on both `StructRef` and `PrimitiveRef`.
 
 ### Design Principle
 
 **Any generic named field access implementation must be more concise than:**
 ```scala
-inline def x = p._0
+inline def x = p(0)
 ```
 
 If a macro/annotation approach requires more code than the simple extension, it's not worth the complexity.

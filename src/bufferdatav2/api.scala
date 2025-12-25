@@ -23,7 +23,8 @@ object BufferPrimitive:
 
   object U16 extends BufferPrimitive:
     val byteSize = 2
-    inline def read(view: DataView, offset: Int): Any = view.getUint16(offset, littleEndian = true)
+    inline def read(view: DataView, offset: Int): Any =
+      view.getUint16(offset, littleEndian = true)
     inline def write(view: DataView, offset: Int, value: Any): Unit =
       val v = value match
         case i: Int   => i
@@ -33,7 +34,8 @@ object BufferPrimitive:
 
   object I32 extends BufferPrimitive:
     val byteSize = 4
-    inline def read(view: DataView, offset: Int): Any = view.getInt32(offset, littleEndian = true)
+    inline def read(view: DataView, offset: Int): Any =
+      view.getInt32(offset, littleEndian = true)
     inline def write(view: DataView, offset: Int, value: Any): Unit =
       val v = value match
         case i: Int  => i
@@ -43,7 +45,8 @@ object BufferPrimitive:
 
   object U32 extends BufferPrimitive:
     val byteSize = 4
-    inline def read(view: DataView, offset: Int): Any = view.getUint32(offset, littleEndian = true)
+    inline def read(view: DataView, offset: Int): Any =
+      view.getUint32(offset, littleEndian = true)
     inline def write(view: DataView, offset: Int, value: Any): Unit =
       val v = value match
         case i: Int    => i.toDouble
@@ -55,7 +58,8 @@ object BufferPrimitive:
 
   object F32 extends BufferPrimitive:
     val byteSize = 4
-    inline def read(view: DataView, offset: Int): Any = view.getFloat32(offset, littleEndian = true)
+    inline def read(view: DataView, offset: Int): Any =
+      view.getFloat32(offset, littleEndian = true)
     inline def write(view: DataView, offset: Int, value: Any): Unit =
       val v = value match
         case f: Float  => f
@@ -66,7 +70,8 @@ object BufferPrimitive:
 
   object F64 extends BufferPrimitive:
     val byteSize = 8
-    inline def read(view: DataView, offset: Int): Any = view.getFloat64(offset, littleEndian = true)
+    inline def read(view: DataView, offset: Int): Any =
+      view.getFloat64(offset, littleEndian = true)
     inline def write(view: DataView, offset: Int, value: Any): Unit =
       val v = value match
         case d: Double => d
@@ -86,10 +91,12 @@ private sealed trait FieldDescriptor:
   def offset: Int
   def sizeInBytes: Int
 
-private final case class PrimitiveField(kind: BufferPrimitive, offset: Int) extends FieldDescriptor:
+private final case class PrimitiveField(kind: BufferPrimitive, offset: Int)
+    extends FieldDescriptor:
   val sizeInBytes: Int = kind.byteSize
 
-private final case class NestedField(layout: LayoutMetadata, offset: Int) extends FieldDescriptor:
+private final case class NestedField(layout: LayoutMetadata, offset: Int)
+    extends FieldDescriptor:
   val sizeInBytes: Int = layout.stride
 
 final class LayoutMetadata(val stride: Int, val fields: Array[FieldDescriptor]):
@@ -101,14 +108,20 @@ object LayoutMetadata:
     val finalOffset = accumulate[Fields](0, acc)
     new LayoutMetadata(finalOffset, acc.toArray)
 
-  inline private def accumulate[Fields <: Tuple](offset: Int, acc: ArrayBuffer[FieldDescriptor]): Int =
+  inline private def accumulate[Fields <: Tuple](
+      offset: Int,
+      acc: ArrayBuffer[FieldDescriptor]
+  ): Int =
     inline erasedValue[Fields] match
-      case _: EmptyTuple => offset
+      case _: EmptyTuple     => offset
       case _: (head *: tail) =>
         val next = appendField[head](offset, acc)
         accumulate[tail](next, acc)
 
-  inline private def appendField[Field](offset: Int, acc: ArrayBuffer[FieldDescriptor]): Int =
+  inline private def appendField[Field](
+      offset: Int,
+      acc: ArrayBuffer[FieldDescriptor]
+  ): Int =
     inline erasedValue[Field] match
       case _: BufferPrimitive =>
         val prim = summonPrimitive[Field]
@@ -123,15 +136,17 @@ object LayoutMetadata:
 
   inline private def summonPrimitive[P]: BufferPrimitive =
     inline erasedValue[P] match
-      case _: U8 => BufferPrimitive.U8
+      case _: U8  => BufferPrimitive.U8
       case _: U16 => BufferPrimitive.U16
       case _: I32 => BufferPrimitive.I32
       case _: U32 => BufferPrimitive.U32
       case _: F32 => BufferPrimitive.F32
       case _: F64 => BufferPrimitive.F64
-      case _ => error("Unknown primitive kind in schema")
+      case _      => error("Unknown primitive kind in schema")
 
-final class Schema[Fields <: Tuple] private[bufferdatav2] (val metadata: LayoutMetadata):
+final class Schema[Fields <: Tuple] private[bufferdatav2] (
+    val metadata: LayoutMetadata
+):
   def sizeInBytes: Int = metadata.stride
 
   def allocate(count: Int): StructArray[Fields] =
@@ -157,13 +172,18 @@ final class StructArray[Fields <: Tuple] private (
 
   def apply(index: Int): StructRef =
     if index < 0 || index >= length then
-      throw IndexOutOfBoundsException(s"Struct index $index outside 0 until $length")
+      throw IndexOutOfBoundsException(
+        s"Struct index $index outside 0 until $length"
+      )
     StructRef(metadata, view, index * metadata.stride)
 
   def arrayBuffer: JsArrayBuffer = buffer
 
 object StructArray:
-  def apply[Fields <: Tuple](metadata: LayoutMetadata, count: Int): StructArray[Fields] =
+  def apply[Fields <: Tuple](
+      metadata: LayoutMetadata,
+      count: Int
+  ): StructArray[Fields] =
     require(count >= 0, "count must be non-negative")
     val totalBytes = metadata.stride * count
     val buffer = new JsArrayBuffer(totalBytes)
@@ -173,14 +193,21 @@ object StructArray:
 object StructRef:
   opaque type Type = (LayoutMetadata, DataView, Int)
 
-  inline def apply(metadata: LayoutMetadata, view: DataView, offset: Int): Type =
+  inline def apply(
+      metadata: LayoutMetadata,
+      view: DataView,
+      offset: Int
+  ): Type =
     (metadata, view, offset)
 
   inline def metadata(ref: Type): LayoutMetadata = ref._1
   inline def view(ref: Type): DataView = ref._2
   inline def baseOffset(ref: Type): Int = ref._3
 
-  inline private[bufferdatav2] def select(ref: Type, fieldIndex: Int): FieldRef.Type =
+  inline private[bufferdatav2] def select(
+      ref: Type,
+      fieldIndex: Int
+  ): FieldRef.Type =
     val meta = metadata(ref)
     FieldRef(meta.fieldAt(fieldIndex), view(ref), baseOffset(ref))
 
@@ -197,7 +224,8 @@ object StructRef:
 
   object syntax:
     extension (ref: Type)
-      inline def apply(fieldIndex: Int): FieldRef = StructRef.select(ref, fieldIndex)
+      inline def apply(fieldIndex: Int): FieldRef =
+        StructRef.select(ref, fieldIndex)
 
       inline def copyFrom(other: Type): Unit =
         StructRef.copyInto(ref, other)
@@ -214,7 +242,11 @@ type StructRef = StructRef.Type
 object FieldRef:
   opaque type Type = (FieldDescriptor, DataView, Int)
 
-  inline def apply(descriptor: FieldDescriptor, view: DataView, baseOffset: Int): Type =
+  inline def apply(
+      descriptor: FieldDescriptor,
+      view: DataView,
+      baseOffset: Int
+  ): Type =
     (descriptor, view, baseOffset)
 
   inline def descriptor(ref: Type): FieldDescriptor = ref._1
@@ -226,17 +258,22 @@ object FieldRef:
 
   extension (ref: Type)
     inline def get: Any = descriptor(ref) match
-      case PrimitiveField(kind, offset) => kind.read(view(ref), baseOffset(ref) + offset)
-      case NestedField(layout, offset)  => StructRef(layout, view(ref), baseOffset(ref) + offset)
+      case PrimitiveField(kind, offset) =>
+        kind.read(view(ref), baseOffset(ref) + offset)
+      case NestedField(layout, offset) =>
+        StructRef(layout, view(ref), baseOffset(ref) + offset)
 
     inline def set(value: Any): Unit = descriptor(ref) match
-      case PrimitiveField(kind, offset) => kind.write(view(ref), baseOffset(ref) + offset, value)
+      case PrimitiveField(kind, offset) =>
+        kind.write(view(ref), baseOffset(ref) + offset, value)
       case NestedField(_, _) =>
         val candidate: Any = value
         candidate match
           case structView: StructRef => asStruct.copyFrom(structView)
-          case _ =>
-            throw IllegalArgumentException("Expected StructRef for nested field assignment")
+          case _                     =>
+            throw IllegalArgumentException(
+              "Expected StructRef for nested field assignment"
+            )
 
     inline def apply(fieldIndex: Int): FieldRef = select(ref, fieldIndex)
 
@@ -246,8 +283,11 @@ object FieldRef:
     inline def _3: FieldRef = select(ref, 3)
 
     inline def asStruct: StructRef = descriptor(ref) match
-      case NestedField(layout, offset) => StructRef(layout, view(ref), baseOffset(ref) + offset)
+      case NestedField(layout, offset) =>
+        StructRef(layout, view(ref), baseOffset(ref) + offset)
       case PrimitiveField(_, _) =>
-        throw IllegalStateException("Primitive fields do not expose nested struct access")
+        throw IllegalStateException(
+          "Primitive fields do not expose nested struct access"
+        )
 
 type FieldRef = FieldRef.Type

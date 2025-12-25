@@ -36,14 +36,14 @@ object BufferDataDemo:
 
     // Populate using typed accessors - no .asF32 needed!
     for i <- 0 until 10 do
-      particles(i)._0.set(i.toFloat * 1.5f)
-      particles(i)._1.set((i * 10).toShort)
+      particles(i)(0).set(i.toFloat * 1.5f)
+      particles(i)(1).set((i * 10).toShort)
 
     // Read back using typed accessors - types inferred!
     println("\nReading back values:")
     for i <- 0 until 10 do
-      val f32Val: Float = particles(i)._0.get
-      val u8Val: Short = particles(i)._1.get
+      val f32Val: Float = particles(i)(0).get
+      val u8Val: Short = particles(i)(1).get
       println(s"  particles($i): F32=$f32Val, U8=$u8Val")
 
   // Export to JavaScript for validation
@@ -54,8 +54,8 @@ object BufferDataDemo:
 
     // Initialize with sample data
     for i <- 0 until count do
-      particles(i)._0.set(i.toFloat)
-      particles(i)._1.set((i % 256).toShort)
+      particles(i)(0).set(i.toFloat)
+      particles(i)(1).set((i % 256).toShort)
 
     // Return a JS object with info
     js.Dynamic.literal(
@@ -63,12 +63,12 @@ object BufferDataDemo:
       structSize = layout.sizeInBytes,
       totalBytes = count * layout.sizeInBytes,
       firstElement = js.Dynamic.literal(
-        f32 = particles(0)._0.get,
-        u8 = particles(0)._1.get
+        f32 = particles(0)(0).get,
+        u8 = particles(0)(1).get
       ),
       lastElement = js.Dynamic.literal(
-        f32 = particles(count - 1)._0.get,
-        u8 = particles(count - 1)._1.get
+        f32 = particles(count - 1)(0).get,
+        u8 = particles(count - 1)(1).get
       )
     )
 
