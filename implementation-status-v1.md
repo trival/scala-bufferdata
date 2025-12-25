@@ -84,10 +84,10 @@ array(i)._1.set(life)           // life
 val x: Float = array(i)._0._0.get
 val life: Short = array(i)._1.get
 
-// Hot loop - use unsafeApply to skip bounds check
+// Hot loop - no bounds check overhead
 var i = 0
 while i < array.length do
-  array.unsafeApply(i)._0.set(values(i))
+  array(i)._0.set(values(i))
   i += 1
 
 // Utilities
@@ -129,12 +129,167 @@ scala-cli --power package . --js -o dist/bufferdata.js --force
 1. **Erased Layout**: `StructLayout` is a phantom type - allocate/access use `constValue` for all calculations
 2. **Match Types**: `TupleSize`, `FieldOffset` compute sizes/offsets at compile time
 3. **Minimal Tuples**: All opaque types backed by `(DataView, Int)` - no layout reference
-4. **Safe + Unsafe API**: `apply()` has bounds check, `unsafeApply()` for hot loops
+4. **No Bounds Checking**: `apply()` is zero-cost, relies on DataView for out-of-bounds errors
 5. **Type Inference**: `Tuple.Elem[Fields, N]` extracts field types automatically
 
 ## Future Improvements
 
-- Named field access via NamedTuple (Scala 3.5+)
+- **Nicer named syntax**: Currently `particles(0).apply["x"]` - could explore extension methods for `particles(0).x` via macros
 - Alignment/padding options for GPU compatibility
 - SIMD-friendly access patterns
 - Linear algebra types (Vec2, Vec3, Mat4) as library layer
+- **NamedTuple support**: When Scala 3 improves match type disjointness (potentially 3.10+)
+
+## Named Field Access (December 2025)
+
+### Recommended Approach: Simple Extensions on Unnamed Tuples
+
+The most concise zero-cost approach for `.x` syntax is using simple extension methods on unnamed tuple structs:
+
+```scala
+import bufferdatav1.*
+
+// Define layout with unnamed tuple
+type Vec2 = (F32, F32)
+type Particle = (Vec2, U8)
+
+// Add named accessors via extension - only need StructRef!
+// Nested tuple access automatically returns StructRef, not FieldRef
+extension (p: StructRef[Particle])
+  inline def pos = p._0   // Returns StructRef[Vec2]
+  inline def life = p._1  // Returns FieldRef[U8]
+
+extension (v: StructRef[Vec2])
+  inline def x = v._0     // Returns FieldRef[F32]
+  inline def y = v._1     // Returns FieldRef[F32]
+
+// Usage - zero-cost .x syntax!
+val particles = struct[Particle].allocate(100)
+particles(0).pos.x.set(10.0f)
+particles(0).pos.y.set(20.0f)
+particles(0).life.set(100: Short)
+```
+
+This approach is:
+- **Zero-cost**: `inline def` ensures complete inlining
+- **Minimal boilerplate**: One line per field
+- **Type-safe**: Compiler enforces correct types
+- **No duplicate extensions**: Nested access returns `StructRef`, so one extension per type suffices
+- **GLSL-style friendly**: Can define `.x`/`.y`/`.z` AND `.r`/`.g`/`.b` for same fields
+
+### Key Design: StructRef for Nested Tuples
+
+When accessing a field that is itself a tuple, you get `StructRef[T]` instead of `FieldRef[T]`:
+
+```scala
+type Particle = (Vec2, U8)  // Vec2 is (F32, F32)
+
+val p = struct[Particle]()
+p._0    // Returns StructRef[Vec2], NOT FieldRef[Vec2]
+p._1    // Returns FieldRef[U8] (primitive)
+```
+
+This means you only need one set of extensions per nested struct type - no need for duplicate extensions on both `StructRef` and `FieldRef`.
+
+### Design Principle
+
+**Any generic named field access implementation must be more concise than:**
+```scala
+inline def x = p._0
+```
+
+If a macro/annotation approach requires more code than the simple extension, it's not worth the complexity.
+
+### Approaches Investigated (December 2025)
+
+We explored several approaches to achieve `.x` syntax automatically. Here's what was tried:
+
+#### 1. `selectDynamic` on Opaque Types - FAILED
+
+**Attempt:** Add `extends Dynamic` to opaque `StructRef` type and use `selectDynamic`:
+```scala
+opaque type StructRef[Fields] <: Dynamic = (DataView, Int)
+extension [Fields](s: StructRef[Fields])
+  inline def selectDynamic(inline name: String): FieldRef[...] = ...
+```
+
+**Failure reasons:**
+- Opaque types cannot extend `Dynamic`
+- `inline name: String` cannot be used as a singleton type for match type lookup
+- Scala 3 doesn't allow `name.type` on inline parameters
+
+#### 2. Value Class with Dynamic - FAILED
+
+**Attempt:** Wrap in value class extending `Dynamic`:
+```scala
+class StructRefDyn[Fields](val underlying: StructRef[Fields]) extends AnyVal with Dynamic:
+  inline def selectDynamic(inline name: String): FieldRef[...] = ...
+```
+
+**Failure reasons:**
+- `Implementation restriction: nested inline methods are not supported`
+- Value classes with inline methods hit compiler limitations
+
+#### 3. Wrapper Class with Dynamic - WORKED (but not zero-cost)
+
+**Attempt:** Non-value class wrapper:
+```scala
+class NStructRefDyn[Fields](underlying: NStructRef[Fields]) extends Dynamic:
+  def selectDynamic(name: String): FieldRef[...] = ...
+```
+
+**Result:** Works syntactically but allocates wrapper object - not zero-cost.
+
+#### 4. Direct Macro Field Access - WORKED (zero-cost)
+
+**Attempt:** Macro that takes struct ref and field name:
+```scala
+transparent inline def field[Fields <: Tuple](
+    inline s: NStructRef[Fields],
+    inline name: String
+): Any = ${ fieldImpl[Fields]('s, 'name) }
+
+// Usage:
+field(particles(0), "x").set(10.0f)
+```
+
+**Result:** Zero-cost, but syntax is verbose (`field(p, "x")` vs `.x`).
+
+#### 5. Code Generation Macro - WORKED (zero-cost, requires copy-paste)
+
+**Attempt:** Macro that generates extension code as string:
+```scala
+inline def code[Fields <: Tuple](inline typeName: String): String =
+  ${ codeImpl[Fields]('typeName) }
+
+// Usage:
+println(DeriveAccessors.code[Particle]("Particle"))
+// Output: extension (p: NStructRef[Particle]) inline def x: FieldRef[F32] = ...
+```
+
+**Result:** Generates correct code but requires copy-pasting into source files.
+
+#### 6. MacroAnnotation (@schema) - FAILED
+
+**Attempt:** Use Scala 3 MacroAnnotation to transform schema definition:
+```scala
+@schema
+type Particle = (("x", F32), ("y", F32), ("life", U8))
+// Would auto-generate extension methods
+```
+
+**Failure reasons:**
+- `MacroAnnotation.transform` can only return `Definition` nodes
+- Extension methods are complex synthetic constructs (implicit classes or given instances)
+- Cannot easily generate top-level extension blocks from annotation macros
+
+### Why Not Scala 3 NamedTuple?
+
+Scala 3 NamedTuple (`type Vec2 = (x: F32, y: F32)`) compiles to `NamedTuple[Names, Values]`. Match types cannot prove disjointness between `Tuple` and `NamedTuple[N, V]`:
+
+```
+failed since selector (F32, F32, U8) does not match case NamedTuple[n, v] => v
+and cannot be shown to be disjoint from it either.
+```
+
+May be resolved in future Scala versions (potentially 3.10+).

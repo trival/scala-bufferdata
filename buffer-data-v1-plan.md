@@ -1118,6 +1118,262 @@ Generate all code via macros without any intermediate abstractions
 | Error message clarity | Clear indication of layout errors        |
 | IDE support           | Full autocomplete for field names        |
 
+## Named Field Access Implementation (Research Complete)
+
+### Background: NamedTuple in Scala 3
+
+Scala 3.5+ introduced named tuples with the following representation:
+
+```scala
+type Particle = (x: F32, y: F32, life: U8)
+// Desugars to: NamedTuple[("x", "y", "life"), (F32, F32, U8)]
+```
+
+The `NamedTuple` type is defined as:
+```scala
+opaque type NamedTuple[N <: Tuple, +V <: Tuple] >: V = V
+```
+
+**Key Challenge**: `NamedTuple[N, V]` does NOT conform to `Tuple`. Our existing match types (`TupleSize`, `FieldOffset`) have constraint `Fields <: Tuple`, so they won't work directly with named tuples.
+
+### Solution: Dual-Path Match Types + selectDynamic
+
+#### Step 1: Type Extractors for NamedTuple
+
+```scala
+import scala.NamedTuple.{NamedTuple, Names, DropNames}
+
+/** Extract underlying values tuple from NamedTuple, or return Tuple as-is */
+type UnwrapFields[T] = T match
+  case NamedTuple[n, v] => v
+  case _ => T  // Already a regular tuple
+
+/** Extract names tuple from NamedTuple, or EmptyTuple for anonymous */
+type FieldNames[T] = T match
+  case NamedTuple[n, v] => n
+  case _ => EmptyTuple
+```
+
+#### Step 2: Update Size/Offset Match Types
+
+```scala
+/** Size handles both NamedTuple and regular Tuple */
+type LayoutSize[T] <: Int = UnwrapFields[T] match
+  case EmptyTuple => 0
+  case (h *: t) *: tail => LayoutSize[h *: t] + LayoutSize[tail]
+  case head *: tail => PrimitiveSize[head] + LayoutSize[tail]
+
+/** Offset of field N in any layout type */
+type LayoutOffset[T, N <: Int] <: Int = FieldOffset[UnwrapFields[T], N]
+```
+
+#### Step 3: Name-to-Index Resolution (Compile-Time)
+
+```scala
+/** Find index of name in names tuple */
+type NameIndex[Names <: Tuple, Name <: String, Acc <: Int] <: Int = Names match
+  case EmptyTuple => -1  // Not found
+  case Name *: tail => Acc
+  case _ *: tail => NameIndex[tail, Name, scala.compiletime.ops.int.S[Acc]]
+
+/** Get field type by name */
+type NamedFieldType[T, Name <: String] =
+  Tuple.Elem[UnwrapFields[T], NameIndex[FieldNames[T], Name, 0]]
+
+/** Get field offset by name */
+type NamedFieldOffset[T, Name <: String] <: Int =
+  LayoutOffset[T, NameIndex[FieldNames[T], Name, 0]]
+```
+
+#### Step 4: selectDynamic for Named Access
+
+```scala
+import scala.Dynamic
+
+opaque type StructRef[Fields] <: Dynamic = (DataView, Int)
+
+object StructRef:
+  extension [Fields](s: StructRef[Fields])
+    // Existing index-based accessors
+    inline def _0: FieldRef[Tuple.Elem[UnwrapFields[Fields], 0]] =
+      (s._1, s._2 + constValue[FieldOffset[UnwrapFields[Fields], 0]])
+
+    // NEW: Named access via selectDynamic
+    inline def selectDynamic(inline name: String): FieldRef[NamedFieldType[Fields, name.type]] =
+      (s._1, s._2 + constValue[NamedFieldOffset[Fields, name.type]])
+```
+
+### Target API
+
+```scala
+// Define with named tuple
+type Particle = (x: F32, y: F32, life: U8)
+val particles = struct[Particle].allocate(100)
+
+// Named access (new)
+particles(0).x.set(10.0f)
+particles(0).y.set(20.0f)
+particles(0).life.set(100: Short)
+
+// Index access (still works)
+particles(0)._0.set(10.0f)
+particles(0)._1.set(20.0f)
+particles(0)._2.set(100: Short)
+
+// Nested named tuples
+type Vec2 = (x: F32, y: F32)
+type Entity = (position: Vec2, health: U8)
+entities(0).position.x.set(100.0f)  // Chained named access
+```
+
+### Implementation Files
+
+- `src/bufferdatav1/package.scala` - Add NamedTuple support to existing types
+- `test/src/BufferDataV1Test.scala` - Add named access tests
+
+### Potential Issues
+
+1. **Match type reduction**: `NameIndex` must reduce at compile time for literal string types
+2. **Dynamic + opaque type**: May need explicit `<: Dynamic` in opaque type definition
+3. **Zero-cost verification**: `selectDynamic` with literal strings must inline completely
+4. **Error messages**: Invalid field names should produce clear compile errors
+
+### Fallback API (if selectDynamic is problematic)
+
+```scala
+// Type-level string lookup
+particles(0).field["x"].set(10.0f)
+// or
+particles(0)("x").set(10.0f)
+```
+
+### References
+
+- [Named Tuples - Scala 3](https://dotty.epfl.ch/docs/reference/other-new-features/named-tuples.html)
+- [SIP-58 - Named Tuples](https://docs.scala-lang.org/sips/58.html)
+- [Named Tuples in Scala 3.7.0 - Arktekk](https://arktekk.no/blogs/2025_scala_named_tuples)
+
+### Implementation Status (December 2025)
+
+#### Attempt 1: NamedTuple with selectDynamic
+
+**Attempted:** Implemented the NamedTuple approach with `selectDynamic`.
+
+**Result:** Multiple blockers encountered:
+
+1. **Match type disjointness failure:**
+   ```
+   failed since selector (F32, F32, U8)
+   does not match case NamedTuple[n, v] => v
+   and cannot be shown to be disjoint from it either.
+   ```
+
+2. **Inline parameter singleton type error:**
+   ```scala
+   inline def selectDynamic(inline name: String): FieldRef[NamedFieldType[Fields, name.type]]
+   // Error: (name : String) is not a valid singleton type, since it is not an immutable path
+   ```
+
+3. **Opaque type with Dynamic conflict:**
+   ```scala
+   opaque type StructRef[Fields] <: Dynamic = (DataView, Int)
+   // Error: cannot combine bound and alias
+   ```
+
+**Conclusion:** The NamedTuple approach is blocked by fundamental Scala 3 limitations that won't be addressed until at least Scala 3.10 (feature freeze in effect).
+
+---
+
+#### Attempt 2: Nested Tuple Schema (SUCCESSFUL)
+
+**Approach:** Use nested tuples `(("name", Type), ...)` instead of NamedTuple:
+
+```scala
+type Particle = (("x", F32), ("y", F32), ("life", U8))
+```
+
+**Key Insight:** Match types CAN match on string literal types:
+```scala
+type NFieldType[Fields <: Tuple, Name <: String] = Fields match
+  case (Name, t) *: _ => t  // String literal matching works!
+  case (_, _) *: tail => NFieldType[tail, Name]
+```
+
+**Implementation:** Uses `transparent inline def ... : Any` to compute return type at call site where concrete types are known:
+```scala
+extension [Fields <: Tuple](s: NStructRef[Fields])
+  transparent inline def apply[Name <: String & Singleton]: Any =
+    FieldRef[NFieldType[Fields, Name]](s._1, s._2 + constValue[NFieldOffset[Fields, Name, 0]])
+```
+
+**Result:** Zero-cost named field access achieved!
+
+```scala
+// Schema definition
+type Particle = (("x", F32), ("y", F32), ("life", U8))
+
+// Usage
+val particles = namedStruct[Particle].allocate(100)
+particles(0).apply["x"].set(10.0f)
+particles(0).apply["y"].set(20.0f)
+particles(0).apply["life"].set(100: Short)
+
+// Read values
+val x: Float = particles(0).apply["x"].get
+```
+
+**Zero-Cost Verification:**
+
+Generated JavaScript for direct DataView:
+```javascript
+var baseOffset = Math.imul(9, i);
+view.setFloat32(baseOffset, value, true);              // x at offset 0
+view.setFloat32(((4 + baseOffset) | 0), value, true);  // y at offset 4
+view.setUint8(((8 + baseOffset) | 0), value);          // life at offset 8
+```
+
+Generated JavaScript for named struct abstraction:
+```javascript
+var offset = Math.imul(9, i);
+_1.setFloat32(offset, value, true);                    // x at offset 0
+_1.setFloat32(((4 + offset) | 0), value, true);        // y at offset 4
+_1.setUint8(((8 + offset) | 0), value);                // life at offset 8
+```
+
+All field offsets (4, 8) and stride (9) are compile-time constants.
+
+**Files:**
+- `src/bufferdatav1/NamedFields.scala` - Named field implementation
+- `test/src/NamedFieldsTest.scala` - 6 tests for named access
+
+**Tests:** All pass, including:
+- Named schema size computation
+- Named schema buffer allocation
+- Named field access by string literal
+- Named field access with index
+- Named schema array access
+- Mixed named and index access
+
+---
+
+#### Summary: Named Field Access Options
+
+| Approach | Syntax | Status | Notes |
+|----------|--------|--------|-------|
+| NamedTuple + selectDynamic | `p.x.set(...)` | ❌ Blocked | Scala 3 match type limitations |
+| Nested Tuple Schema | `p.apply["x"].set(...)` | ✅ Working | Zero-cost, type-safe |
+| Index-based | `p._0.set(...)` | ✅ Working | Always available |
+
+**Recommendation:** Use nested tuple schema for named access. The `apply["name"]` syntax is slightly more verbose than `.name` but provides:
+- Full type safety (invalid field names are compile errors)
+- Zero-cost performance (compile-time offset calculation)
+- Works today without waiting for Scala 3.10+
+
+**Future:** When Scala 3 improves NamedTuple type-level support, we can add:
+```scala
+particles(0).x.set(10.0f)  // If selectDynamic becomes viable
+```
+
 ## Next Steps: Ready to Implement
 
 ### Phase 1-3: Foundation (Start Here)

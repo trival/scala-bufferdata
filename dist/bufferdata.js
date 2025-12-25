@@ -1075,32 +1075,108 @@ $c_Lbufferdatav1_ZeroCostValidation$.prototype.structViewsUsage__sjs_js_Object =
     _1.setFloat32(_2, value$proxy3, true);
     var index$proxy2 = i;
     var _2$1 = Math.imul(5, index$proxy2);
-    var _2$2 = ((4 + _2$1) | 0);
+    var offset$proxy6 = ((4 + _2$1) | 0);
     var value$proxy4 = ((Math.imul(10, i) << 16) >> 16);
-    _1.setUint8(_2$2, value$proxy4);
+    _1.setUint8(offset$proxy6, value$proxy4);
     i = ((1 + i) | 0);
   }
-  var result = $uF(_1.getFloat32(0, true));
-  var result$2 = $uS(_1.getUint8(4));
-  var _2$3 = ({
-    "f32": result,
-    "u8": result$2
+  var value = $uF(_1.getFloat32(0, true));
+  var value$1 = $uS(_1.getUint8(4));
+  var _2$2 = ({
+    "f32": value,
+    "u8": value$1
   });
-  var result$3 = $uF(_1.getFloat32(15, true));
-  var result$4 = $uS(_1.getUint8(19));
+  var value$2 = $uF(_1.getFloat32(15, true));
+  var value$3 = $uS(_1.getUint8(19));
+  var _2$3 = ({
+    "f32": value$2,
+    "u8": value$3
+  });
+  return ({
+    "first": _2$2,
+    "last": _2$3
+  });
+});
+$c_Lbufferdatav1_ZeroCostValidation$.prototype.namedNestedUsage__sjs_js_Object = (function() {
+  var buffer = new ArrayBuffer(36);
+  var _1 = new DataView(buffer);
+  var i = 0;
+  while ((i < 4)) {
+    var index$proxy3 = i;
+    var _2 = Math.imul(9, index$proxy3);
+    var value$proxy5 = Math.fround((10.0 * Math.fround(i)));
+    _1.setFloat32(_2, value$proxy5, true);
+    var index$proxy4 = i;
+    var _2$1 = Math.imul(9, index$proxy4);
+    var offset$proxy12 = ((4 + _2$1) | 0);
+    var value$proxy6 = Math.fround((20.0 * Math.fround(i)));
+    _1.setFloat32(offset$proxy12, value$proxy6, true);
+    var index$proxy5 = i;
+    var _2$2 = Math.imul(9, index$proxy5);
+    var offset$proxy13 = ((8 + _2$2) | 0);
+    var value$proxy7 = ((Math.imul(25, i) << 16) >> 16);
+    _1.setUint8(offset$proxy13, value$proxy7);
+    i = ((1 + i) | 0);
+  }
+  var value = $uF(_1.getFloat32(0, true));
+  var value$1 = $uF(_1.getFloat32(4, true));
+  var value$2 = $uS(_1.getUint8(8));
+  var _2$3 = ({
+    "x": value,
+    "y": value$1,
+    "life": value$2
+  });
+  var value$3 = $uF(_1.getFloat32(27, true));
+  var value$4 = $uF(_1.getFloat32(31, true));
+  var value$5 = $uS(_1.getUint8(35));
   var _2$4 = ({
-    "f32": result$3,
-    "u8": result$4
+    "x": value$3,
+    "y": value$4,
+    "life": value$5
   });
   return ({
     "first": _2$3,
     "last": _2$4
   });
 });
+$c_Lbufferdatav1_ZeroCostValidation$.prototype.directNestedUsage__sjs_js_Object = (function() {
+  var buffer = new ArrayBuffer(36);
+  var view = new DataView(buffer);
+  var i = 0;
+  while ((i < 4)) {
+    var baseOffset = Math.imul(9, i);
+    view.setFloat32(baseOffset, Math.fround((10.0 * Math.fround(i))), true);
+    view.setFloat32(((4 + baseOffset) | 0), Math.fround((20.0 * Math.fround(i))), true);
+    view.setUint8(((8 + baseOffset) | 0), ((Math.imul(25, i) << 16) >> 16));
+    i = ((1 + i) | 0);
+  }
+  var value = $uF(view.getFloat32(0, true));
+  var value$1 = $uF(view.getFloat32(4, true));
+  var value$2 = $uS(view.getUint8(8));
+  var _2 = ({
+    "x": value,
+    "y": value$1,
+    "life": value$2
+  });
+  var value$3 = $uF(view.getFloat32(27, true));
+  var value$4 = $uF(view.getFloat32(31, true));
+  var value$5 = $uS(view.getUint8(35));
+  var _2$1 = ({
+    "x": value$3,
+    "y": value$4,
+    "life": value$5
+  });
+  return ({
+    "first": _2,
+    "last": _2$1
+  });
+});
 $c_Lbufferdatav1_ZeroCostValidation$.prototype.validate__sjs_js_Object = (function() {
   var direct = this.directDataViewUsage__sjs_js_Object();
   var primitive = this.primitiveViewsUsage__sjs_js_Object();
   var struct = this.structViewsUsage__sjs_js_Object();
+  var directNested = this.directNestedUsage__sjs_js_Object();
+  var namedNested = this.namedNestedUsage__sjs_js_Object();
   var x = direct.first.f32;
   var y = primitive.first.f32;
   if ($m_sr_BoxesRunTime$().equals__O__O__Z(x, y)) {
@@ -1152,11 +1228,51 @@ $c_Lbufferdatav1_ZeroCostValidation$.prototype.validate__sjs_js_Object = (functi
   } else {
     var value = false;
   }
+  var x$8 = directNested.first.x;
+  var y$8 = namedNested.first.x;
+  if ($m_sr_BoxesRunTime$().equals__O__O__Z(x$8, y$8)) {
+    var x$9 = directNested.first.y;
+    var y$9 = namedNested.first.y;
+    var $x_10 = $m_sr_BoxesRunTime$().equals__O__O__Z(x$9, y$9);
+  } else {
+    var $x_10 = false;
+  }
+  if ($x_10) {
+    var x$10 = directNested.first.life;
+    var y$10 = namedNested.first.life;
+    var $x_9 = $m_sr_BoxesRunTime$().equals__O__O__Z(x$10, y$10);
+  } else {
+    var $x_9 = false;
+  }
+  if ($x_9) {
+    var x$11 = directNested.last.x;
+    var y$11 = namedNested.last.x;
+    var $x_8 = $m_sr_BoxesRunTime$().equals__O__O__Z(x$11, y$11);
+  } else {
+    var $x_8 = false;
+  }
+  if ($x_8) {
+    var x$12 = directNested.last.y;
+    var y$12 = namedNested.last.y;
+    var $x_7 = $m_sr_BoxesRunTime$().equals__O__O__Z(x$12, y$12);
+  } else {
+    var $x_7 = false;
+  }
+  if ($x_7) {
+    var x$13 = directNested.last.life;
+    var y$13 = namedNested.last.life;
+    var value$1 = $m_sr_BoxesRunTime$().equals__O__O__Z(x$13, y$13);
+  } else {
+    var value$1 = false;
+  }
   return ({
     "direct": direct,
     "primitive": primitive,
     "struct": struct,
-    "allEqual": value
+    "directNested": directNested,
+    "namedNested": namedNested,
+    "allEqual": value,
+    "nestedEqual": value$1
   });
 });
 var $d_Lbufferdatav1_ZeroCostValidation$ = new $TypeData().initClass($c_Lbufferdatav1_ZeroCostValidation$, "bufferdatav1.ZeroCostValidation$", ({
@@ -1310,9 +1426,9 @@ $c_Lexample_BufferDataDemo$.prototype.runDemo__V = (function() {
     var value$proxy1 = Math.fround((1.5 * Math.fround(x0)));
     _1.setFloat32(_2, value$proxy1, true);
     var _2$1 = Math.imul(5, x0);
-    var _2$2 = ((4 + _2$1) | 0);
+    var offset$proxy2 = ((4 + _2$1) | 0);
     var value$proxy2 = ((Math.imul(10, x0) << 16) >> 16);
-    _1.setUint8(_2$2, value$proxy2);
+    _1.setUint8(offset$proxy2, value$proxy2);
     if ((i === 9)) {
       break;
     }
@@ -1324,12 +1440,12 @@ $c_Lexample_BufferDataDemo$.prototype.runDemo__V = (function() {
   var i$1 = 0;
   while (true) {
     var x0$1 = i$1;
+    var _2$2 = Math.imul(5, x0$1);
+    var f32Val = $uF(_1.getFloat32(_2$2, true));
     var _2$3 = Math.imul(5, x0$1);
-    var result = $uF(_1.getFloat32(_2$3, true));
-    var _2$4 = Math.imul(5, x0$1);
-    var _2$5 = ((4 + _2$4) | 0);
-    var result$2 = $uS(_1.getUint8(_2$5));
-    var x = ((((("  particles(" + x0$1) + "): F32=") + result) + ", U8=") + result$2);
+    var offset$proxy4 = ((4 + _2$3) | 0);
+    var u8Val = $uS(_1.getUint8(offset$proxy4));
+    var x = ((((("  particles(" + x0$1) + "): F32=") + f32Val) + ", U8=") + u8Val);
     var this$31 = $m_s_Console$();
     var this$32 = $n(this$31.out__Ljava_io_PrintStream());
     this$32.java$lang$JSConsoleBasedPrintStream$$printString__T__V((x + "\n"));
@@ -1352,9 +1468,9 @@ $c_Lexample_BufferDataDemo$.prototype.createParticleBuffer__I__sjs_js_Object = (
       var value$proxy3 = Math.fround(x0);
       _1.setFloat32(_2, value$proxy3, true);
       var _2$1 = Math.imul(5, x0);
-      var _2$2 = ((4 + _2$1) | 0);
+      var offset$proxy6 = ((4 + _2$1) | 0);
       var value$proxy4 = ((((x0 % 256) | 0) << 16) >> 16);
-      _1.setUint8(_2$2, value$proxy4);
+      _1.setUint8(offset$proxy6, value$proxy4);
       if ((i === scala$collection$immutable$Range$$lastElement)) {
         break;
       }
@@ -1362,29 +1478,29 @@ $c_Lexample_BufferDataDemo$.prototype.createParticleBuffer__I__sjs_js_Object = (
     }
   }
   var value = Math.imul(5, count);
-  var result = $uF(_1.getFloat32(0, true));
-  var result$2 = $uS(_1.getUint8(4));
-  var _2$3 = ({
-    "f32": result,
-    "u8": result$2
+  var value$1 = $uF(_1.getFloat32(0, true));
+  var value$2 = $uS(_1.getUint8(4));
+  var _2$2 = ({
+    "f32": value$1,
+    "u8": value$2
   });
   var index$proxy1 = (((-1) + count) | 0);
-  var _2$4 = Math.imul(5, index$proxy1);
-  var result$3 = $uF(_1.getFloat32(_2$4, true));
+  var _2$3 = Math.imul(5, index$proxy1);
+  var value$3 = $uF(_1.getFloat32(_2$3, true));
   var index$proxy2 = (((-1) + count) | 0);
-  var _2$5 = Math.imul(5, index$proxy2);
-  var _2$6 = ((4 + _2$5) | 0);
-  var result$4 = $uS(_1.getUint8(_2$6));
-  var _2$7 = ({
-    "f32": result$3,
-    "u8": result$4
+  var _2$4 = Math.imul(5, index$proxy2);
+  var offset$proxy10 = ((4 + _2$4) | 0);
+  var value$4 = $uS(_1.getUint8(offset$proxy10));
+  var _2$5 = ({
+    "f32": value$3,
+    "u8": value$4
   });
   return ({
     "count": count,
     "structSize": 5,
     "totalBytes": value,
-    "firstElement": _2$3,
-    "lastElement": _2$7
+    "firstElement": _2$2,
+    "lastElement": _2$5
   });
 });
 var $d_Lexample_BufferDataDemo$ = new $TypeData().initClass($c_Lexample_BufferDataDemo$, "example.BufferDataDemo$", ({
@@ -1448,8 +1564,8 @@ $c_Lexample_BufferDataV2Demo$.prototype.runDemo__V = (function() {
           var x2 = $as_Lbufferdatav2_NestedField(descriptor$proxy1);
           var x4 = $n(x2)._1__Lbufferdatav2_LayoutMetadata();
           var x5 = $n(x2)._2__I();
-          var offset$proxy1 = ((baseOffset$proxy1 + x5) | 0);
-          var $x_1 = new $c_T3(x4, view$proxy1, offset$proxy1);
+          var offset$proxy11 = ((baseOffset$proxy1 + x5) | 0);
+          var $x_1 = new $c_T3(x4, view$proxy1, offset$proxy11);
           break matchResult1$1;
         }
         throw new $c_s_MatchError(descriptor$proxy1);
@@ -1474,8 +1590,8 @@ $c_Lexample_BufferDataV2Demo$.prototype.runDemo__V = (function() {
           var x11 = $as_Lbufferdatav2_NestedField(descriptor$proxy2);
           var x13 = $n(x11)._1__Lbufferdatav2_LayoutMetadata();
           var x14 = $n(x11)._2__I();
-          var offset$proxy2 = ((baseOffset$proxy2 + x14) | 0);
-          var $x_2 = new $c_T3(x13, view$proxy3, offset$proxy2);
+          var offset$proxy12 = ((baseOffset$proxy2 + x14) | 0);
+          var $x_2 = new $c_T3(x13, view$proxy3, offset$proxy12);
           break matchResult2$1;
         }
         throw new $c_s_MatchError(descriptor$proxy2);
@@ -1526,8 +1642,8 @@ $c_Lexample_BufferDataV2Demo$.prototype.createBufferDataV2Particles__I__sjs_js_O
         var x20 = $as_Lbufferdatav2_NestedField(descriptor$proxy3);
         var x22 = $n(x20)._1__Lbufferdatav2_LayoutMetadata();
         var x23 = $n(x20)._2__I();
-        var offset$proxy3 = ((baseOffset$proxy3 + x23) | 0);
-        var $x_1 = new $c_T3(x22, view$proxy5, offset$proxy3);
+        var offset$proxy13 = ((baseOffset$proxy3 + x23) | 0);
+        var $x_1 = new $c_T3(x22, view$proxy5, offset$proxy13);
         break matchResult3$1;
       }
       throw new $c_s_MatchError(descriptor$proxy3);
@@ -1553,8 +1669,8 @@ $c_Lexample_BufferDataV2Demo$.prototype.createBufferDataV2Particles__I__sjs_js_O
         var x29 = $as_Lbufferdatav2_NestedField(descriptor$proxy4);
         var x31 = $n(x29)._1__Lbufferdatav2_LayoutMetadata();
         var x32 = $n(x29)._2__I();
-        var offset$proxy4 = ((baseOffset$proxy4 + x32) | 0);
-        var $x_2 = new $c_T3(x31, view$proxy7, offset$proxy4);
+        var offset$proxy14 = ((baseOffset$proxy4 + x32) | 0);
+        var $x_2 = new $c_T3(x31, view$proxy7, offset$proxy14);
         break matchResult4$1;
       }
       throw new $c_s_MatchError(descriptor$proxy4);
@@ -1584,8 +1700,8 @@ $c_Lexample_BufferDataV2Demo$.prototype.createBufferDataV2Particles__I__sjs_js_O
         var x38 = $as_Lbufferdatav2_NestedField(descriptor$proxy5);
         var x40 = $n(x38)._1__Lbufferdatav2_LayoutMetadata();
         var x41 = $n(x38)._2__I();
-        var offset$proxy5 = ((baseOffset$proxy5 + x41) | 0);
-        var $x_3 = new $c_T3(x40, view$proxy9, offset$proxy5);
+        var offset$proxy15 = ((baseOffset$proxy5 + x41) | 0);
+        var $x_3 = new $c_T3(x40, view$proxy9, offset$proxy15);
         break matchResult5$1;
       }
       throw new $c_s_MatchError(descriptor$proxy5);
@@ -1611,8 +1727,8 @@ $c_Lexample_BufferDataV2Demo$.prototype.createBufferDataV2Particles__I__sjs_js_O
         var x47 = $as_Lbufferdatav2_NestedField(descriptor$proxy6);
         var x49 = $n(x47)._1__Lbufferdatav2_LayoutMetadata();
         var x50 = $n(x47)._2__I();
-        var offset$proxy6 = ((baseOffset$proxy6 + x50) | 0);
-        var $x_4 = new $c_T3(x49, view$proxy11, offset$proxy6);
+        var offset$proxy16 = ((baseOffset$proxy6 + x50) | 0);
+        var $x_4 = new $c_T3(x49, view$proxy11, offset$proxy16);
         break matchResult6$1;
       }
       throw new $c_s_MatchError(descriptor$proxy6);
@@ -5432,6 +5548,10 @@ let $e_zeroCostStructViews = (function() {
   return $m_Lbufferdatav1_ZeroCostValidation$().structViewsUsage__sjs_js_Object();
 });
 export { $e_zeroCostStructViews as zeroCostStructViews };
+let $e_zeroCostDirectNested = (function() {
+  return $m_Lbufferdatav1_ZeroCostValidation$().directNestedUsage__sjs_js_Object();
+});
+export { $e_zeroCostDirectNested as zeroCostDirectNested };
 let $e_validateZeroCost = (function() {
   return $m_Lbufferdatav1_ZeroCostValidation$().validate__sjs_js_Object();
 });
@@ -5444,6 +5564,10 @@ let $e_zeroCostDirect = (function() {
   return $m_Lbufferdatav1_ZeroCostValidation$().directDataViewUsage__sjs_js_Object();
 });
 export { $e_zeroCostDirect as zeroCostDirect };
+let $e_zeroCostNamedNested = (function() {
+  return $m_Lbufferdatav1_ZeroCostValidation$().namedNestedUsage__sjs_js_Object();
+});
+export { $e_zeroCostNamedNested as zeroCostNamedNested };
 let $e_createParticleBufferV2 = (function(...rest) {
   var prep0 = ((rest[0] === (void 0)) ? ($m_Lexample_BufferDataV2Demo$(), 10) : $uI(rest[0]));
   return $m_Lexample_BufferDataV2Demo$().createBufferDataV2Particles__I__sjs_js_Object(prep0);

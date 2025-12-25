@@ -302,6 +302,117 @@ class BufferDataV1Test extends FunSuite:
     assertEquals(rawBuffer.byteLength, 50)
 
   // ==========================================================================
+  // Phase 7: Named Field Access via Extensions
+  // ==========================================================================
+  //
+  // Recommended approach: simple inline extensions on unnamed tuples.
+  // This is zero-cost and more concise than any macro-based approach.
+
+  // Define types
+  type Vec2 = (F32, F32)
+  type Particle = (Vec2, U8)
+  type Transform = (Vec2, Vec2)  // position, velocity
+  type Entity = (Transform, U8)  // transform, health
+
+  // Extensions for Vec2 - only need StructRef since nested access returns StructRef!
+  extension (v: StructRef[Vec2])
+    inline def x = v._0
+    inline def y = v._1
+
+  // Extensions for Particle
+  extension (p: StructRef[Particle])
+    inline def pos = p._0
+    inline def life = p._1
+
+  // Extensions for Transform - only need StructRef
+  extension (t: StructRef[Transform])
+    inline def position = t._0
+    inline def velocity = t._1
+
+  // Extensions for Entity
+  extension (e: StructRef[Entity])
+    inline def transform = e._0
+    inline def health = e._1
+
+  test("Named extensions on single struct"):
+    val v = struct[Vec2]()
+
+    v.x.set(10.0f)
+    v.y.set(20.0f)
+
+    assertEqualsFloat(v.x.get, 10.0f, 0.001f)
+    assertEqualsFloat(v.y.get, 20.0f, 0.001f)
+
+  test("Named extensions with nested struct"):
+    val p = struct[Particle]()
+
+    p.pos.x.set(100.0f)
+    p.pos.y.set(200.0f)
+    p.life.set(255: Short)
+
+    assertEqualsFloat(p.pos.x.get, 100.0f, 0.001f)
+    assertEqualsFloat(p.pos.y.get, 200.0f, 0.001f)
+    assertEquals(p.life.get, 255.toShort)
+
+  test("Named extensions with deeply nested struct"):
+    val e = struct[Entity]()
+
+    e.transform.position.x.set(1.0f)
+    e.transform.position.y.set(2.0f)
+    e.transform.velocity.x.set(3.0f)
+    e.transform.velocity.y.set(4.0f)
+    e.health.set(100: Short)
+
+    assertEqualsFloat(e.transform.position.x.get, 1.0f, 0.001f)
+    assertEqualsFloat(e.transform.position.y.get, 2.0f, 0.001f)
+    assertEqualsFloat(e.transform.velocity.x.get, 3.0f, 0.001f)
+    assertEqualsFloat(e.transform.velocity.y.get, 4.0f, 0.001f)
+    assertEquals(e.health.get, 100.toShort)
+
+  test("Named extensions with array access"):
+    val particles = struct[Particle].allocate(100)
+
+    for i <- 0 until 100 do
+      particles(i).pos.x.set(i.toFloat)
+      particles(i).pos.y.set(i.toFloat * 2)
+      particles(i).life.set((i % 256).toShort)
+
+    // Verify values
+    assertEqualsFloat(particles(0).pos.x.get, 0.0f, 0.001f)
+    assertEqualsFloat(particles(50).pos.x.get, 50.0f, 0.001f)
+    assertEqualsFloat(particles(50).pos.y.get, 100.0f, 0.001f)
+    assertEquals(particles(99).life.get, 99.toShort)
+
+  test("Named extensions types are inferred correctly"):
+    val p = struct[Particle]()
+
+    p.pos.x.set(42.0f)
+    p.pos.y.set(84.0f)
+    p.life.set(128: Short)
+
+    // Types should be inferred without casts
+    val xVal: Float = p.pos.x.get
+    val yVal: Float = p.pos.y.get
+    val lifeVal: Short = p.life.get
+
+    assertEqualsFloat(xVal, 42.0f, 0.001f)
+    assertEqualsFloat(yVal, 84.0f, 0.001f)
+    assertEquals(lifeVal, 128.toShort)
+
+  test("Named extensions mixed with index access"):
+    val p = struct[Particle]()
+
+    // Can mix named and index-based access
+    p.pos.x.set(10.0f)      // named
+    p._0._1.set(20.0f)      // index-based for y
+    p.life.set(50: Short)   // named
+
+    assertEqualsFloat(p.pos.x.get, 10.0f, 0.001f)
+    assertEqualsFloat(p.pos.y.get, 20.0f, 0.001f)  // read via named
+    assertEqualsFloat(p._0._1.get, 20.0f, 0.001f)  // same value via index
+    assertEquals(p.life.get, 50.toShort)
+
+  // ==========================================================================
   // Helper methods
   // ==========================================================================
 

@@ -1,8 +1,6 @@
 package bufferdatav1
 
 import scala.scalajs.js.typedarray.{ArrayBuffer, DataView}
-import scala.compiletime.{constValue, erasedValue, error}
-import scala.compiletime.ops.int.+
 
 // =============================================================================
 // Primitive Types as Scala 3 Enum with compile-time size information
@@ -34,58 +32,7 @@ type I16 = PrimitiveType.I16.type
 type I32 = PrimitiveType.I32.type
 
 // =============================================================================
-// Compile-Time Size and Offset Calculation (Match Types)
-// =============================================================================
-
-/** Size of a primitive field type in bytes */
-type PrimitiveSize[T] <: Int = T match
-  case F32 => 4
-  case F64 => 8
-  case U8 => 1
-  case U16 => 2
-  case U32 => 4
-  case I8 => 1
-  case I16 => 2
-  case I32 => 4
-
-/** Total size of a tuple (struct) in bytes - handles both primitives and nested tuples */
-type TupleSize[Fields <: Tuple] <: Int = Fields match
-  case EmptyTuple => 0
-  case (h *: t) *: tail => TupleSize[h *: t] + TupleSize[tail]  // Nested tuple
-  case head *: tail => PrimitiveSize[head] + TupleSize[tail]    // Primitive
-
-/** Size of any field (primitive or nested tuple) */
-type FieldSize[T] <: Int = T match
-  case F32 => 4
-  case F64 => 8
-  case U8 => 1
-  case U16 => 2
-  case U32 => 4
-  case I8 => 1
-  case I16 => 2
-  case I32 => 4
-  case h *: t => TupleSize[h *: t]
-
-/** Offset of field at index N within a tuple */
-type FieldOffset[Fields <: Tuple, N <: Int] <: Int = N match
-  case 0 => 0
-  case scala.compiletime.ops.int.S[n1] => Fields match
-    case (h *: t) *: tail => TupleSize[h *: t] + FieldOffset[tail, n1]  // Nested tuple head
-    case head *: tail => PrimitiveSize[head] + FieldOffset[tail, n1]    // Primitive head
-
-/** Value type mapping for get/set */
-type ValueType[T] = T match
-  case F32 => Float
-  case F64 => Double
-  case U8 => Short
-  case U16 => Int
-  case U32 => Double
-  case I8 => Byte
-  case I16 => Short
-  case I32 => Int
-
-// =============================================================================
-// Primitive Views (Opaque Types) - ZERO COST (kept for direct low-level access)
+// Primitive Views (Opaque Types) - ZERO COST
 // =============================================================================
 
 opaque type F32View = (DataView, Int)
@@ -145,7 +92,66 @@ object I32View:
     inline def set(value: Int): Unit = v._1.setInt32(v._2, value, littleEndian = true)
 
 // =============================================================================
-// StructArray - ZERO COST: just (DataView, count), layout is phantom type
+// Compile-Time Size and Offset Calculation (Match Types)
+// =============================================================================
+
+import scala.compiletime.{constValue, erasedValue, error}
+import scala.compiletime.ops.int.+
+
+/** Size of a primitive field type in bytes */
+type PrimitiveSize[T] <: Int = T match
+  case F32 => 4
+  case F64 => 8
+  case U8 => 1
+  case U16 => 2
+  case U32 => 4
+  case I8 => 1
+  case I16 => 2
+  case I32 => 4
+
+/** Total size of a tuple (struct) in bytes - handles both primitives and nested tuples */
+type TupleSize[Fields <: Tuple] <: Int = Fields match
+  case EmptyTuple => 0
+  case (h *: t) *: tail => TupleSize[h *: t] + TupleSize[tail]  // Nested tuple
+  case head *: tail => PrimitiveSize[head] + TupleSize[tail]    // Primitive
+
+/** Size of any field (primitive or nested tuple) */
+type FieldSize[T] <: Int = T match
+  case F32 => 4
+  case F64 => 8
+  case U8 => 1
+  case U16 => 2
+  case U32 => 4
+  case I8 => 1
+  case I16 => 2
+  case I32 => 4
+  case h *: t => TupleSize[h *: t]
+
+/** Offset of field at index N within a tuple */
+type FieldOffset[Fields <: Tuple, N <: Int] <: Int = N match
+  case 0 => 0
+  case scala.compiletime.ops.int.S[n1] => Fields match
+    case (h *: t) *: tail => TupleSize[h *: t] + FieldOffset[tail, n1]  // Nested tuple head
+    case head *: tail => PrimitiveSize[head] + FieldOffset[tail, n1]    // Primitive head
+
+/** Value type mapping for get/set */
+type ValueType[T] = T match
+  case F32 => Float
+  case F64 => Double
+  case U8 => Short
+  case U16 => Int
+  case U32 => Double
+  case I8 => Byte
+  case I16 => Short
+  case I32 => Int
+
+/** Return type for field access - StructRef for tuples, FieldRef for primitives */
+type FieldAccess[T] = T match
+  case h *: t => StructRef[T & Tuple]
+  case _ => FieldRef[T]
+
+// =============================================================================
+// Typed StructArray - ZERO COST: just (DataView, count), layout is phantom type
 // =============================================================================
 
 opaque type StructArray[Fields <: Tuple] = (DataView, Int) // view, count
@@ -187,7 +193,7 @@ final class StructLayout[Fields <: Tuple]:
 inline def struct[Fields <: Tuple]: StructLayout[Fields] = new StructLayout[Fields]
 
 // =============================================================================
-// StructRef - ZERO COST: just (DataView, baseOffset), layout is phantom type
+// Typed StructRef - ZERO COST: just (DataView, baseOffset), layout is phantom type
 // =============================================================================
 
 opaque type StructRef[Fields <: Tuple] = (DataView, Int) // view, baseOffset
@@ -200,42 +206,47 @@ object StructRef:
     inline def dataView: DataView = s._1
     inline def baseOffset: Int = s._2
 
-    /** Field access with compile-time offset calculation */
-    inline def _0: FieldRef[Tuple.Elem[Fields, 0]] =
-      (s._1, s._2 + constValue[FieldOffset[Fields, 0]])
+    /** Field access - returns StructRef for nested tuples, FieldRef for primitives */
+    transparent inline def _0: FieldAccess[Tuple.Elem[Fields, 0]] =
+      inline erasedValue[Tuple.Elem[Fields, 0]] match
+        case _: (h *: t) => StructRef[Tuple.Elem[Fields, 0] & Tuple](s._1, s._2 + constValue[FieldOffset[Fields, 0]])
+        case _ => FieldRef[Tuple.Elem[Fields, 0]](s._1, s._2 + constValue[FieldOffset[Fields, 0]])
+    transparent inline def _1: FieldAccess[Tuple.Elem[Fields, 1]] =
+      inline erasedValue[Tuple.Elem[Fields, 1]] match
+        case _: (h *: t) => StructRef[Tuple.Elem[Fields, 1] & Tuple](s._1, s._2 + constValue[FieldOffset[Fields, 1]])
+        case _ => FieldRef[Tuple.Elem[Fields, 1]](s._1, s._2 + constValue[FieldOffset[Fields, 1]])
+    transparent inline def _2: FieldAccess[Tuple.Elem[Fields, 2]] =
+      inline erasedValue[Tuple.Elem[Fields, 2]] match
+        case _: (h *: t) => StructRef[Tuple.Elem[Fields, 2] & Tuple](s._1, s._2 + constValue[FieldOffset[Fields, 2]])
+        case _ => FieldRef[Tuple.Elem[Fields, 2]](s._1, s._2 + constValue[FieldOffset[Fields, 2]])
+    transparent inline def _3: FieldAccess[Tuple.Elem[Fields, 3]] =
+      inline erasedValue[Tuple.Elem[Fields, 3]] match
+        case _: (h *: t) => StructRef[Tuple.Elem[Fields, 3] & Tuple](s._1, s._2 + constValue[FieldOffset[Fields, 3]])
+        case _ => FieldRef[Tuple.Elem[Fields, 3]](s._1, s._2 + constValue[FieldOffset[Fields, 3]])
 
-    inline def _1: FieldRef[Tuple.Elem[Fields, 1]] =
-      (s._1, s._2 + constValue[FieldOffset[Fields, 1]])
-
-    inline def _2: FieldRef[Tuple.Elem[Fields, 2]] =
-      (s._1, s._2 + constValue[FieldOffset[Fields, 2]])
-
-    inline def _3: FieldRef[Tuple.Elem[Fields, 3]] =
-      (s._1, s._2 + constValue[FieldOffset[Fields, 3]])
-
-    /** Copy data from another struct (byte-by-byte) */
+    /** Copy data from another struct of the same layout */
     inline def copyFrom(other: StructRef[Fields]): Unit =
-      val size = constValue[TupleSize[Fields]]
+      val stride = constValue[TupleSize[Fields]]
       var i = 0
-      while i < size do
+      while i < stride do
         val byte = other._1.getUint8(other._2 + i)
         s._1.setUint8(s._2 + i, byte)
         i += 1
 
     /** Extract a slice buffer containing just this struct's bytes */
     inline def sliceBuffer: ArrayBuffer =
-      val size = constValue[TupleSize[Fields]]
-      val sliced = new ArrayBuffer(size)
+      val stride = constValue[TupleSize[Fields]]
+      val sliced = new ArrayBuffer(stride)
       val slicedView = new DataView(sliced)
       var i = 0
-      while i < size do
+      while i < stride do
         val byte = s._1.getUint8(s._2 + i)
         slicedView.setUint8(i, byte)
         i += 1
       sliced
 
 // =============================================================================
-// FieldRef - ZERO COST: just (DataView, absoluteOffset), type is phantom
+// Typed FieldRef - ZERO COST reference to a field
 // =============================================================================
 
 opaque type FieldRef[T] = (DataView, Int) // view, absoluteOffset
@@ -244,35 +255,34 @@ object FieldRef:
   inline def apply[T](view: DataView, offset: Int): FieldRef[T] = (view, offset)
 
   extension [T](f: FieldRef[T])
-    inline def dataView: DataView = f._1
+    inline def view: DataView = f._1
     inline def offset: Int = f._2
 
-    /** Type-safe get with compile-time dispatch */
+    /** Get the value - type is determined by T */
     inline def get: ValueType[T] =
-      val result: Any = inline erasedValue[T] match
-        case _: F32 => f._1.getFloat32(f._2, true)
-        case _: F64 => f._1.getFloat64(f._2, true)
+      inline erasedValue[T] match
+        case _: F32 => f._1.getFloat32(f._2, littleEndian = true)
+        case _: F64 => f._1.getFloat64(f._2, littleEndian = true)
         case _: U8 => f._1.getUint8(f._2)
-        case _: U16 => f._1.getUint16(f._2, true)
-        case _: U32 => f._1.getUint32(f._2, true)
+        case _: U16 => f._1.getUint16(f._2, littleEndian = true)
+        case _: U32 => f._1.getUint32(f._2, littleEndian = true)
         case _: I8 => f._1.getInt8(f._2)
-        case _: I16 => f._1.getInt16(f._2, true)
-        case _: I32 => f._1.getInt32(f._2, true)
-      result.asInstanceOf[ValueType[T]]
+        case _: I16 => f._1.getInt16(f._2, littleEndian = true)
+        case _: I32 => f._1.getInt32(f._2, littleEndian = true)
 
-    /** Type-safe set with compile-time dispatch */
+    /** Set the value - type is determined by T */
     inline def set(value: ValueType[T]): Unit =
       inline erasedValue[T] match
-        case _: F32 => f._1.setFloat32(f._2, value.asInstanceOf[Float], true)
-        case _: F64 => f._1.setFloat64(f._2, value.asInstanceOf[Double], true)
+        case _: F32 => f._1.setFloat32(f._2, value.asInstanceOf[Float], littleEndian = true)
+        case _: F64 => f._1.setFloat64(f._2, value.asInstanceOf[Double], littleEndian = true)
         case _: U8 => f._1.setUint8(f._2, value.asInstanceOf[Short])
-        case _: U16 => f._1.setUint16(f._2, value.asInstanceOf[Int], true)
-        case _: U32 => f._1.setUint32(f._2, value.asInstanceOf[Double], true)
+        case _: U16 => f._1.setUint16(f._2, value.asInstanceOf[Int], littleEndian = true)
+        case _: U32 => f._1.setUint32(f._2, value.asInstanceOf[Double], littleEndian = true)
         case _: I8 => f._1.setInt8(f._2, value.asInstanceOf[Byte])
-        case _: I16 => f._1.setInt16(f._2, value.asInstanceOf[Short], true)
-        case _: I32 => f._1.setInt32(f._2, value.asInstanceOf[Int], true)
+        case _: I16 => f._1.setInt16(f._2, value.asInstanceOf[Short], littleEndian = true)
+        case _: I32 => f._1.setInt32(f._2, value.asInstanceOf[Int], littleEndian = true)
 
-    /** Extract field bytes as new buffer */
+    /** Extract a slice buffer for this field */
     inline def sliceBuffer: ArrayBuffer =
       val size = constValue[FieldSize[T]]
       val sliced = new ArrayBuffer(size)
@@ -284,19 +294,3 @@ object FieldRef:
         i += 1
       sliced
 
-  // Nested struct access - only for Tuple types
-  extension [T <: Tuple](f: FieldRef[T])
-    inline def _0: FieldRef[Tuple.Elem[T, 0]] =
-      (f._1, f._2 + constValue[FieldOffset[T, 0]])
-
-    inline def _1: FieldRef[Tuple.Elem[T, 1]] =
-      (f._1, f._2 + constValue[FieldOffset[T, 1]])
-
-    inline def _2: FieldRef[Tuple.Elem[T, 2]] =
-      (f._1, f._2 + constValue[FieldOffset[T, 2]])
-
-    inline def _3: FieldRef[Tuple.Elem[T, 3]] =
-      (f._1, f._2 + constValue[FieldOffset[T, 3]])
-
-    /** Get as nested StructRef */
-    inline def asStruct: StructRef[T] = (f._1, f._2)
