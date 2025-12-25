@@ -1,4 +1,4 @@
-package bufferdatav1
+package bufferdata
 
 import scala.scalajs.js
 import scala.scalajs.js.annotation.JSExportTopLevel

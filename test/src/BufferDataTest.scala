@@ -1,9 +1,9 @@
-package bufferdatav1
+package bufferdata
 
 import munit.FunSuite
 import scala.scalajs.js.typedarray.{ArrayBuffer, DataView}
 
-class BufferDataV1Test extends FunSuite:
+class BufferDataTest extends FunSuite:
 
   // ==========================================================================
   // Phase 1: Primitive View Tests

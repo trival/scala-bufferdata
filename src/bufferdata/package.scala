@@ -1,4 +1,4 @@
-package bufferdatav1
+package bufferdata
 
 import scala.scalajs.js.typedarray.{ArrayBuffer, DataView, Uint8Array}
 import scala.scalajs.js.Dynamic.literal
