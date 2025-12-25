@@ -16,42 +16,46 @@ import _root_.bufferdatav2.FieldRef.*
   // Demo buffer data structures
   println("\n--- BufferData v1 Demo ---")
   BufferDataDemo.runDemo()
+  println("\n--- BufferData v1 createParticles ---")
+  val jsData = BufferDataDemo.createParticleBuffer(5)
+  println("Created particle buffer (v1):")
+  println(js.JSON.stringify(jsData, space = 2))
 
   println("\n--- BufferData v2 Demo ---")
   BufferDataV2Demo.runDemo()
 
 object BufferDataDemo:
   def runDemo(): Unit =
-    // Define struct layout: (F32, U8) - 5 bytes total
-    given layout: StructLayout = StructLayout(F32, U8)
+    // Define struct layout using new typed API: (F32, U8) - 5 bytes total
+    val layout = struct[(F32, U8)]
 
     println(s"Creating array of 10 structs (F32, U8)")
-    val particles = ArrayView.allocate(10)
+    val particles = layout.allocate(10)
     println(s"Array length: ${particles.length}")
     println(s"Struct size: ${layout.sizeInBytes} bytes")
 
-    // Populate using typed accessors
+    // Populate using typed accessors - no .asF32 needed!
     for i <- 0 until 10 do
-      particles(i)._0.asF32.set(i.toFloat * 1.5f)
-      particles(i)._1.asU8.set((i * 10).toShort)
+      particles(i)._0.set(i.toFloat * 1.5f)
+      particles(i)._1.set((i * 10).toShort)
 
-    // Read back using typed accessors
+    // Read back using typed accessors - types inferred!
     println("\nReading back values:")
     for i <- 0 until 10 do
-      val f32Val = particles(i)._0.asF32.get
-      val u8Val = particles(i)._1.asU8.get
+      val f32Val: Float = particles(i)._0.get
+      val u8Val: Short = particles(i)._1.get
       println(s"  particles($i): F32=$f32Val, U8=$u8Val")
 
   // Export to JavaScript for validation
   @JSExportTopLevel("createParticleBufferV1")
   def createParticleBuffer(count: Int): js.Object =
-    given layout: StructLayout = StructLayout(F32, U8)
-    val particles = ArrayView.allocate(count)
+    val layout = struct[(F32, U8)]
+    val particles = layout.allocate(count)
 
     // Initialize with sample data
     for i <- 0 until count do
-      particles(i)._0.asF32.set(i.toFloat)
-      particles(i)._1.asU8.set((i % 256).toShort)
+      particles(i)._0.set(i.toFloat)
+      particles(i)._1.set((i % 256).toShort)
 
     // Return a JS object with info
     js.Dynamic.literal(
@@ -59,12 +63,12 @@ object BufferDataDemo:
       structSize = layout.sizeInBytes,
       totalBytes = count * layout.sizeInBytes,
       firstElement = js.Dynamic.literal(
-        f32 = particles(0)._0.asF32.get,
-        u8 = particles(0)._1.asU8.get
+        f32 = particles(0)._0.get,
+        u8 = particles(0)._1.get
       ),
       lastElement = js.Dynamic.literal(
-        f32 = particles(count - 1)._0.asF32.get,
-        u8 = particles(count - 1)._1.asU8.get
+        f32 = particles(count - 1)._0.get,
+        u8 = particles(count - 1)._1.get
       )
     )
 

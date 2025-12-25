@@ -72,28 +72,28 @@ object ZeroCostValidation:
       last = js.Dynamic.literal(f32 = lastF32.get, u8 = lastU8.get)
     )
 
-  /** Using full struct abstraction.
+  /** Using full typed struct abstraction with ERASED LAYOUT.
     * Compare generated JS with the direct version above.
+    * Should now be nearly identical due to compile-time offset calculation.
     */
   @JSExportTopLevel("zeroCostStructViews")
   def structViewsUsage(): js.Object =
-    given layout: StructLayout = StructLayout(F32, U8)
-    val particles = ArrayView.allocate(4)
+    val particles = StructArray.allocate[(F32, U8)](4)
 
     var i = 0
     while i < 4 do
-      particles(i)._0.asF32.set(i.toFloat * 2.0f)
-      particles(i)._1.asU8.set((i * 10).toShort)
+      particles(i)._0.set(i.toFloat * 2.0f)
+      particles(i)._1.set((i * 10).toShort)
       i += 1
 
     js.Dynamic.literal(
       first = js.Dynamic.literal(
-        f32 = particles(0)._0.asF32.get,
-        u8 = particles(0)._1.asU8.get
+        f32 = particles(0)._0.get,
+        u8 = particles(0)._1.get
       ),
       last = js.Dynamic.literal(
-        f32 = particles(3)._0.asF32.get,
-        u8 = particles(3)._1.asU8.get
+        f32 = particles(3)._0.get,
+        u8 = particles(3)._1.get
       )
     )
 
