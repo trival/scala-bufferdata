@@ -1,5 +1,6 @@
 package bufferdata
 
+import scala.scalajs.js
 import scala.scalajs.js.typedarray.{ArrayBuffer, DataView, Uint8Array}
 import scala.scalajs.js.Dynamic.literal
 
@@ -158,11 +159,54 @@ type ValueType[T] = T match
   case I16 => Short
   case I32 => Int
 
+/** Convert schema tuple to value tuple - recursively handles nested tuples */
+type ValueTuple[Fields <: Tuple] <: Tuple = Fields match
+  case EmptyTuple       => EmptyTuple
+  case (h *: t) *: tail =>
+    ValueTuple[h *: t] *: ValueTuple[tail] // Nested tuple
+  case head *: tail => ValueType[head] *: ValueTuple[tail] // Primitive
+
 /** Return type for field access - StructRef for tuples, FieldRef for primitives
   */
 type FieldAccess[T] = T match
   case h *: t => StructRef[T & Tuple]
   case _      => PrimitiveRef[T]
+
+// =============================================================================
+// Shared Primitive Setter - ZERO COST: inline helper for setting primitives
+// =============================================================================
+
+/** Shared helper: Set a primitive value at an offset (used by both PrimitiveRef
+  * and StructRef)
+  *
+  * Note: The implementation attempts to minimize Scala.js runtime type checks
+  * by treating values generically. However, when called from tuple
+  * destructuring (productElement returns Any), Scala.js may still insert
+  * validation calls like $uF for Float. This is acceptable as the overhead is
+  * minimal compared to the ergonomic benefit of bulk tuple setting. For
+  * performance-critical code, use field-by-field assignment which generates
+  * direct DataView calls.
+  */
+private inline def setPrimitiveValue[T](
+    view: DataView,
+    offset: Int,
+    value: Any
+): Unit =
+  inline erasedValue[T] match
+    case _: F32 =>
+      view.setFloat32(offset, value.asInstanceOf[Float], littleEndian = true)
+    case _: F64 =>
+      view.setFloat64(offset, value.asInstanceOf[Double], littleEndian = true)
+    case _: U8  => view.setUint8(offset, value.asInstanceOf[Short])
+    case _: U16 =>
+      view.setUint16(offset, value.asInstanceOf[Int], littleEndian = true)
+    case _: U32 =>
+      view.setUint32(offset, value.asInstanceOf[Double], littleEndian = true)
+    case _: I8  => view.setInt8(offset, value.asInstanceOf[Byte])
+    case _: I16 =>
+      view.setInt16(offset, value.asInstanceOf[Short], littleEndian = true)
+    case _: I32 =>
+      view.setInt32(offset, value.asInstanceOf[Int], littleEndian = true)
 
 // =============================================================================
 // Typed StructArray - ZERO COST: just (DataView, count), layout is phantom type
@@ -228,6 +272,35 @@ object StructRef:
   ): StructRef[Fields] =
     (view, offset)
 
+  /** Recursively set all fields from a value tuple */
+  private inline def setFields[Fields <: Tuple](
+      view: DataView,
+      baseOffset: Int,
+      values: Any,
+      valueIndex: Int
+  ): Unit =
+    inline erasedValue[Fields] match
+      case _: EmptyTuple => () // Base case: no more fields
+
+      case _: ((h *: t) *: tail) =>
+        // Nested tuple - set the nested struct at current valueIndex
+        val nestedOffset = constValue[FieldOffset[Fields, 0]]
+        val nestedValues =
+          values.asInstanceOf[Product].productElement(valueIndex)
+        setFields[h *: t](view, baseOffset + nestedOffset, nestedValues, 0)
+        // Process tail fields - offset advances by size of first field
+        val tailOffset = baseOffset + constValue[FieldSize[h *: t]]
+        setFields[tail](view, tailOffset, values, valueIndex + 1)
+
+      case _: (head *: tail) =>
+        // Primitive field - set it at current valueIndex
+        val fieldOffset = constValue[FieldOffset[Fields, 0]]
+        val value = values.asInstanceOf[Product].productElement(valueIndex)
+        setPrimitiveValue[head](view, baseOffset + fieldOffset, value)
+        // Process tail fields - offset advances by size of first field
+        val tailOffset = baseOffset + constValue[FieldSize[head]]
+        setFields[tail](view, tailOffset, values, valueIndex + 1)
+
   extension [Fields <: Tuple](s: StructRef[Fields])
     inline def dataView: DataView = s._1
     inline def offset: Int = s._2
@@ -263,6 +336,52 @@ object StructRef:
       val stride = constValue[TupleSize[Fields]]
       s._1.buffer.slice(s._2, s._2 + stride)
 
+    /** Set all fields at once from a value tuple.
+      *
+      * Enables bulk setting of struct fields with clean syntax:
+      * {{{
+      * type Vec2 = (F32, F32)
+      * val v = struct[Vec2]()
+      * v.set((10.0f, 20.0f))  // Set both x and y at once
+      * }}}
+      *
+      * Works with nested structs:
+      * {{{
+      * type Particle = (Vec2, U8)
+      * val p = struct[Particle]()
+      * p.set(((1.0f, 2.0f), 100: Short))  // Set position and life
+      * }}}
+      *
+      * Performance note: Due to Scala.js tuple handling, this generates
+      * slightly more JavaScript code than field-by-field assignment:
+      *   - Extra intermediate variable assignments for tuple destructuring
+      *   - Runtime type validation ($uF for Float, $uD for Double, etc.)
+      *
+      * The overhead is minimal (no allocations, just variable ops + type
+      * checks) and acceptable for the ergonomic benefit. For
+      * performance-critical tight loops, consider field-by-field assignment:
+      * {{{
+      * v(0) := 10.0f  // Direct field access, generates minimal JS
+      * v(1) := 20.0f
+      * }}}
+      */
+    inline def set(values: ValueTuple[Fields]): Unit =
+      setFields[Fields](s._1, s._2, values, 0)
+
+    /** Assignment operator alias for set. Provides cleaner syntax with fewer
+      * parentheses:
+      * {{{
+      * v := (10.0f, 20.0f)      // Using := operator
+      * v.set((10.0f, 20.0f))    // Equivalent explicit call
+      * }}}
+      *
+      * See [[set]] for details and performance characteristics.
+      */
+    inline def :=(values: ValueTuple[Fields]): Unit = set(values)
+
+    /** Apply with value alias for set - allows p.pos.x(100.0f) syntax */
+    inline def apply(value: ValueTuple[Fields]): Unit = set(value)
+
 // =============================================================================
 // Typed PrimitiveRef - ZERO COST reference to a primitive leaf field
 // =============================================================================
@@ -291,21 +410,7 @@ object PrimitiveRef:
 
     /** Set the value - type is determined by T */
     inline def set(value: ValueType[T]): Unit =
-      inline erasedValue[T] match
-        case _: F32 =>
-          f._1.setFloat32(f._2, value.asInstanceOf[Float], littleEndian = true)
-        case _: F64 =>
-          f._1.setFloat64(f._2, value.asInstanceOf[Double], littleEndian = true)
-        case _: U8  => f._1.setUint8(f._2, value.asInstanceOf[Short])
-        case _: U16 =>
-          f._1.setUint16(f._2, value.asInstanceOf[Int], littleEndian = true)
-        case _: U32 =>
-          f._1.setUint32(f._2, value.asInstanceOf[Double], littleEndian = true)
-        case _: I8  => f._1.setInt8(f._2, value.asInstanceOf[Byte])
-        case _: I16 =>
-          f._1.setInt16(f._2, value.asInstanceOf[Short], littleEndian = true)
-        case _: I32 =>
-          f._1.setInt32(f._2, value.asInstanceOf[Int], littleEndian = true)
+      setPrimitiveValue[T](f._1, f._2, value)
 
     /** Assignment operator alias for set */
     inline def :=(value: ValueType[T]): Unit = set(value)

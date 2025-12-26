@@ -139,6 +139,31 @@ object ZeroCostValidation:
       )
     )
 
+  /** Using named extensions with nested struct (Particle with Vec2 position).
+    * Compare generated JS - should have same offsets as direct version.
+    */
+  @JSExportTopLevel("zeroCostNamedTupleSet")
+  def namedTupleSetUsage(): js.Object =
+    val particles = struct[Particle].allocate(4)
+
+    var i = 0
+    while i < 4 do
+      particles(i) := ((i.toFloat * 10.0f, i.toFloat * 20.0f), (i * 25).toShort)
+      i += 1
+
+    js.Dynamic.literal(
+      first = js.Dynamic.literal(
+        x = particles(0).pos.x(),
+        y = particles(0).pos.y(),
+        life = particles(0).life()
+      ),
+      last = js.Dynamic.literal(
+        x = particles(3).pos.x(),
+        y = particles(3).pos.y(),
+        life = particles(3).life()
+      )
+    )
+
   /** Direct DataView usage for nested Particle struct - baseline */
   @JSExportTopLevel("zeroCostDirectNested")
   def directNestedUsage(): js.Object =
@@ -183,6 +208,7 @@ object ZeroCostValidation:
     val struct = structViewsUsage().asInstanceOf[js.Dynamic]
     val directNested = directNestedUsage().asInstanceOf[js.Dynamic]
     val namedNested = namedNestedUsage().asInstanceOf[js.Dynamic]
+    val tupleSetNested = namedTupleSetUsage().asInstanceOf[js.Dynamic]
 
     js.Dynamic.literal(
       direct = direct,
@@ -190,7 +216,8 @@ object ZeroCostValidation:
       struct = struct,
       directNested = directNested,
       namedNested = namedNested,
-      allEqual = (
+      tupleSetNested = tupleSetNested,
+      primitiveEqual = (
         direct.first.f32 == primitive.first.f32 &&
           direct.first.u8 == primitive.first.u8 &&
           direct.last.f32 == primitive.last.f32 &&
@@ -207,5 +234,13 @@ object ZeroCostValidation:
           directNested.last.x == namedNested.last.x &&
           directNested.last.y == namedNested.last.y &&
           directNested.last.life == namedNested.last.life
+      ),
+      tupleSetEqual = (
+        directNested.first.x == tupleSetNested.first.x &&
+          directNested.first.y == tupleSetNested.first.y &&
+          directNested.first.life == tupleSetNested.first.life &&
+          directNested.last.x == tupleSetNested.last.x &&
+          directNested.last.y == tupleSetNested.last.y &&
+          directNested.last.life == tupleSetNested.last.life
       )
     )

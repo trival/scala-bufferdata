@@ -1076,6 +1076,54 @@ $c_Lbufferdata_ZeroCostValidation$.prototype.namedNestedUsage__sjs_js_Object = (
     "last": _2$4
   });
 });
+$c_Lbufferdata_ZeroCostValidation$.prototype.namedTupleSetUsage__sjs_js_Object = (function() {
+  var buffer = new ArrayBuffer(36);
+  var _1 = new DataView(buffer);
+  var i = 0;
+  while ((i < 4)) {
+    var index$proxy6 = i;
+    var _2 = Math.imul(9, index$proxy6);
+    var _1$1 = Math.fround((10.0 * Math.fround(i)));
+    var _2$1 = Math.fround((20.0 * Math.fround(i)));
+    var _2$2 = ((Math.imul(25, i) << 16) >> 16);
+    var nestedValues___1;
+    var nestedValues___2;
+    var nestedValues___1 = _1$1;
+    var nestedValues___2 = _2$1;
+    var value;
+    var value = nestedValues___1;
+    _1.setFloat32(_2, $uF(value), true);
+    var tailOffset = ((4 + _2) | 0);
+    var value$2;
+    var value$2 = nestedValues___2;
+    _1.setFloat32(tailOffset, $uF(value$2), true);
+    var tailOffset$3 = ((8 + _2) | 0);
+    var value$3;
+    var value$3 = _2$2;
+    _1.setUint8(tailOffset$3, value$3);
+    i = ((1 + i) | 0);
+  }
+  var value$1 = $uF(_1.getFloat32(0, true));
+  var value$4 = $uF(_1.getFloat32(4, true));
+  var value$5 = $uS(_1.getUint8(8));
+  var _2$3 = ({
+    "x": value$1,
+    "y": value$4,
+    "life": value$5
+  });
+  var value$6 = $uF(_1.getFloat32(27, true));
+  var value$7 = $uF(_1.getFloat32(31, true));
+  var value$8 = $uS(_1.getUint8(35));
+  var _2$4 = ({
+    "x": value$6,
+    "y": value$7,
+    "life": value$8
+  });
+  return ({
+    "first": _2$3,
+    "last": _2$4
+  });
+});
 $c_Lbufferdata_ZeroCostValidation$.prototype.directNestedUsage__sjs_js_Object = (function() {
   var buffer = new ArrayBuffer(36);
   var view = new DataView(buffer);
@@ -1114,6 +1162,7 @@ $c_Lbufferdata_ZeroCostValidation$.prototype.validate__sjs_js_Object = (function
   var struct = this.structViewsUsage__sjs_js_Object();
   var directNested = this.directNestedUsage__sjs_js_Object();
   var namedNested = this.namedNestedUsage__sjs_js_Object();
+  var tupleSetNested = this.namedTupleSetUsage__sjs_js_Object();
   var x = direct.first.f32;
   var y = primitive.first.f32;
   if ($m_sr_BoxesRunTime$().equals__O__O__Z(x, y)) {
@@ -1202,14 +1251,53 @@ $c_Lbufferdata_ZeroCostValidation$.prototype.validate__sjs_js_Object = (function
   } else {
     var value$1 = false;
   }
+  var x$14 = directNested.first.x;
+  var y$14 = tupleSetNested.first.x;
+  if ($m_sr_BoxesRunTime$().equals__O__O__Z(x$14, y$14)) {
+    var x$15 = directNested.first.y;
+    var y$15 = tupleSetNested.first.y;
+    var $x_14 = $m_sr_BoxesRunTime$().equals__O__O__Z(x$15, y$15);
+  } else {
+    var $x_14 = false;
+  }
+  if ($x_14) {
+    var x$16 = directNested.first.life;
+    var y$16 = tupleSetNested.first.life;
+    var $x_13 = $m_sr_BoxesRunTime$().equals__O__O__Z(x$16, y$16);
+  } else {
+    var $x_13 = false;
+  }
+  if ($x_13) {
+    var x$17 = directNested.last.x;
+    var y$17 = tupleSetNested.last.x;
+    var $x_12 = $m_sr_BoxesRunTime$().equals__O__O__Z(x$17, y$17);
+  } else {
+    var $x_12 = false;
+  }
+  if ($x_12) {
+    var x$18 = directNested.last.y;
+    var y$18 = tupleSetNested.last.y;
+    var $x_11 = $m_sr_BoxesRunTime$().equals__O__O__Z(x$18, y$18);
+  } else {
+    var $x_11 = false;
+  }
+  if ($x_11) {
+    var x$19 = directNested.last.life;
+    var y$19 = tupleSetNested.last.life;
+    var value$2 = $m_sr_BoxesRunTime$().equals__O__O__Z(x$19, y$19);
+  } else {
+    var value$2 = false;
+  }
   return ({
     "direct": direct,
     "primitive": primitive,
     "struct": struct,
     "directNested": directNested,
     "namedNested": namedNested,
-    "allEqual": value,
-    "nestedEqual": value$1
+    "tupleSetNested": tupleSetNested,
+    "primitiveEqual": value,
+    "nestedEqual": value$1,
+    "tupleSetEqual": value$2
   });
 });
 var $d_Lbufferdata_ZeroCostValidation$ = new $TypeData().initClass($c_Lbufferdata_ZeroCostValidation$, "bufferdata.ZeroCostValidation$", ({
@@ -2754,6 +2842,10 @@ let $e_zeroCostDirectNested = (function() {
   return $m_Lbufferdata_ZeroCostValidation$().directNestedUsage__sjs_js_Object();
 });
 export { $e_zeroCostDirectNested as zeroCostDirectNested };
+let $e_zeroCostNamedTupleSet = (function() {
+  return $m_Lbufferdata_ZeroCostValidation$().namedTupleSetUsage__sjs_js_Object();
+});
+export { $e_zeroCostNamedTupleSet as zeroCostNamedTupleSet };
 let $e_validateZeroCost = (function() {
   return $m_Lbufferdata_ZeroCostValidation$().validate__sjs_js_Object();
 });

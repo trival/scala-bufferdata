@@ -494,6 +494,68 @@ class BufferDataTest extends FunSuite:
     assertEquals(life, 50.toShort)
 
   // ==========================================================================
+  // Phase 8: Bulk Set with ValueTuple
+  // ==========================================================================
+
+  test("Bulk set flat struct with := operator"):
+    val v = struct[Vec2]()
+
+    v := (10.0f, 20.0f)
+
+    assertEqualsFloat(v.x.get, 10.0f, 0.001f)
+    assertEqualsFloat(v.y.get, 20.0f, 0.001f)
+
+  test("Bulk set nested struct with := operator"):
+    val p = struct[Particle]()
+
+    p := ((100.0f, 200.0f), 255: Short)
+
+    assertEqualsFloat(p.pos.x.get, 100.0f, 0.001f)
+    assertEqualsFloat(p.pos.y.get, 200.0f, 0.001f)
+    assertEquals(p.life.get, 255.toShort)
+
+  test("Bulk set deeply nested struct with := operator"):
+    val e = struct[Entity]()
+
+    e := (((1.0f, 2.0f), (3.0f, 4.0f)), 100: Short)
+
+    assertEqualsFloat(e.transform.position.x.get, 1.0f, 0.001f)
+    assertEqualsFloat(e.transform.position.y.get, 2.0f, 0.001f)
+    assertEqualsFloat(e.transform.velocity.x.get, 3.0f, 0.001f)
+    assertEqualsFloat(e.transform.velocity.y.get, 4.0f, 0.001f)
+    assertEquals(e.health.get, 100.toShort)
+
+  test("Bulk set partial nested struct"):
+    val e = struct[Entity]()
+
+    // Set entire entity first
+    e := (((10.0f, 20.0f), (30.0f, 40.0f)), 50: Short)
+
+    // Now set just the position within transform
+    e.transform.position := (100.0f, 200.0f)
+
+    // Position should be updated
+    assertEqualsFloat(e.transform.position.x.get, 100.0f, 0.001f)
+    assertEqualsFloat(e.transform.position.y.get, 200.0f, 0.001f)
+
+    // Velocity should remain unchanged
+    assertEqualsFloat(e.transform.velocity.x.get, 30.0f, 0.001f)
+    assertEqualsFloat(e.transform.velocity.y.get, 40.0f, 0.001f)
+
+    // Health should remain unchanged
+    assertEquals(e.health.get, 50.toShort)
+
+  test("Bulk set using explicit .set() method"):
+    val p = struct[Particle]()
+
+    // Use explicit .set() instead of := operator
+    p.set(((50.0f, 75.0f), 128: Short))
+
+    assertEqualsFloat(p.pos.x.get, 50.0f, 0.001f)
+    assertEqualsFloat(p.pos.y.get, 75.0f, 0.001f)
+    assertEquals(p.life.get, 128.toShort)
+
+  // ==========================================================================
   // Helper methods
   // ==========================================================================
 
