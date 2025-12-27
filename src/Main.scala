@@ -36,8 +36,8 @@ object BufferDataDemo:
     // Read back using typed accessors - types inferred!
     println("\nReading back values:")
     for i <- 0 until 10 do
-      val f32Val: Float = particles(i)(0).get
-      val u8Val: Short = particles(i)(1).get
+      val f32Val = particles(i)(0).get
+      val u8Val = particles(i)(1).get
       println(s"  particles($i): F32=$f32Val, U8=$u8Val")
 
   // Export to JavaScript for validation
