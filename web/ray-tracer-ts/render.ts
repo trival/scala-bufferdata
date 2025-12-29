@@ -1,5 +1,5 @@
+import { type Hittable, Ray } from "./objects";
 import { Vec3 } from "./vec3";
-import { Ray, type Hittable } from "./ray";
 
 export interface RenderProps {
   width: number;
@@ -22,31 +22,38 @@ export const defaultRenderProps: RenderProps = {
 };
 
 export function rayColor(ray: Ray, world: Hittable, depth: number): Vec3 {
-  const hit = world.rayHit(ray, 0.001, 100000);
+  let currentRay = ray;
+  let attenuation = new Vec3(1, 1, 1); // Start with white (no attenuation)
 
-  if (hit) {
-    if (depth > 0) {
-      // Generate random diffuse reflection direction
-      const randomUnit = Vec3.randomInUnitSphere().normalize();
-      let direction = hit.normal.add(randomUnit).normalize();
+  for (let bounce = 0; bounce < depth; bounce++) {
+    const hit = world.rayHit(currentRay, 0.001, 100000);
 
-      // Handle degenerate case where direction is near zero
-      if (direction.lengthSquared() < 1e-6) {
-        direction = hit.normal;
+    if (hit) {
+      // Use material to determine scattering
+      const materialResult = hit.material.scatter(currentRay, hit);
+
+      // Attenuate by material color
+      attenuation = attenuation.multiply(materialResult.color);
+
+      if (materialResult.scatteredRay) {
+        // Ray scattered - continue bouncing
+        currentRay = materialResult.scatteredRay;
+      } else {
+        // No scatter (emissive material) - return attenuated color
+        return attenuation;
       }
-
-      const newRay = new Ray(hit.p, direction);
-      return rayColor(newRay, world, depth - 1).mul(0.5);
     } else {
-      return new Vec3(0, 0, 0);
+      // Ray escaped - return sky color with attenuation
+      const t = 0.5 * (currentRay.direction.y + 1);
+      const white = new Vec3(1, 1, 1);
+      const blue = new Vec3(0.5, 0.7, 1.0);
+      const skyColor = white.lerp(blue, t);
+      return skyColor.multiply(attenuation);
     }
-  } else {
-    // Sky gradient
-    const t = 0.5 * (ray.direction.y + 1);
-    const white = new Vec3(1, 1, 1);
-    const blue = new Vec3(0.5, 0.7, 1.0);
-    return white.lerp(blue, t);
   }
+
+  // Max depth reached - return black
+  return new Vec3(0, 0, 0);
 }
 
 export function renderImage(
@@ -89,13 +96,10 @@ export function renderImage(
         .add(pixelDeltaU.mul(x))
         .add(pixelDeltaV.mul(y));
 
-      // Initial sample
-      const rayDirection = pixelCenter.sub(origin).normalize();
-      const ray = new Ray(origin, rayDirection);
-      let color = rayColor(ray, world, maxRayBounces);
+      let color = new Vec3(0, 0, 0);
 
       // Additional samples for anti-aliasing
-      for (let sample = 2; sample <= samplesPerPixel; sample++) {
+      for (let sample = 0; sample < samplesPerPixel; sample++) {
         const jitter = new Vec3(
           (Math.random() - 0.5) * pixelDeltaU.x,
           (Math.random() - 0.5) * pixelDeltaV.y,
