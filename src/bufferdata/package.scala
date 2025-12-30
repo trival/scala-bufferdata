@@ -212,8 +212,8 @@ private inline def setPrimitiveValue[T](
 // Typed StructArray - ZERO COST: just (DataView, count), layout is phantom type
 // =============================================================================
 
-/** Typed struct array with zero-cost abstractions and multiple iteration
-  * patterns.
+/** Typed struct array with zero-cost abstractions and implicit Iterable
+  * conversion.
   *
   * StructArray provides compile-time type-safe access to arrays of structs
   * stored in contiguous ArrayBuffer memory. All type information and offsets
@@ -224,21 +224,15 @@ private inline def setPrimitiveValue[T](
   * StructArray supports multiple iteration approaches with different
   * performance characteristics. Choose based on your use case:
   *
-  * ### Performance-critical hot loops (0-2% overhead):
+  * ### Performance-critical hot loops (zero overhead):
   *
-  * Use inline methods that compile to optimized while loops:
+  * Use direct indexing with indices range for maximum performance:
   * {{{
-  * // Inline foreach - fully optimized, no allocations
-  * particles.foreach { p =>
-  *   p(0) := p(0).get * 0.99f
-  *   p(1) := p(1).get * 0.99f
-  * }
-  *
-  * // Direct indexing with indices range
+  * // Direct indexing with indices range - fully optimized
   * for i <- particles.indices do
   *   particles(i)(0) := i.toFloat
   *
-  * // Direct indexing (original approach, still works)
+  * // Manual indexing (most control)
   * var i = 0
   * while i < particles.length do
   *   particles(i)(0) := i.toFloat
@@ -247,37 +241,43 @@ private inline def setPrimitiveValue[T](
   *
   * ### Generic code / for-comprehensions (5-10% overhead):
   *
-  * Use Iterator-based operations for flexibility and Scala idioms:
+  * StructArray implicitly converts to Iterable, enabling all standard
+  * collection operations via for-comprehensions:
   * {{{
   * // For-comprehension with element access
   * for p <- particles do
   *   p(0) := 100.0f
   *
-  * // For-comprehension with guards
+  * // For-comprehension with guards (uses withFilter)
   * for p <- particles if p(2).get > 0 do
   *   update(p)
   *
-  * // For-yield to collect results
+  * // For-yield to collect results (uses map)
   * val positions = for p <- particles yield
   *   (p(0).get, p(1).get)
+  *
+  * // All standard collection methods work
+  * particles.foreach(p => println(p(0).get))
+  * particles.filter(p => p(1).get > 0).toList
+  * particles.map(p => p(0).get * 2).sum
   *
   * // Passing to functions expecting Iterable[T]
   * trait Hittable { def hit(ray: Ray): Option[Hit] }
   * class HittableList(items: Iterable[Hittable]) { ... }
   *
   * val spheres: StructArray[SphereFields] = ...
-  * val hittables = new HittableList(spheres)  // works!
+  * val hittables = new HittableList(spheres)  // works via implicit conversion!
   * }}}
   *
   * ### Performance characteristics:
   *   - `particles(i)`: Zero-cost, compile-time offset calculation
-  *   - `particles.foreach(f)`: Inline while loop, 0-2% overhead
   *   - `particles.indices`: Zero-cost Range allocation
-  *   - `for p <- particles`: Iterator-based, 5-10% overhead
+  *   - `for p <- particles`: Iterator-based, 5-10% overhead (implicit
+  *     conversion)
   *
   * ## Recommended Usage:
-  *   - Hot loops: Use `foreach` or direct indexing with `indices`
-  *   - Generic APIs: Use Iterator via for-comprehensions
+  *   - Hot loops: Direct indexing with `indices`
+  *   - Generic APIs: Use for-comprehensions (implicit Iterable conversion)
   *   - Interop with Scala collections: Pass directly to `Iterable[T]`
   *     parameters
   */
@@ -296,24 +296,6 @@ object StructArray:
     val count = if stride == 0 then 0 else buffer.byteLength / stride
     (new DataView(buffer), count)
 
-  /** Iterator implementation for StructArray - enables for-comprehensions and
-    * Iterable interop.
-    */
-  final class StructArrayIterator[Fields <: Tuple](
-      arr: StructArray[Fields],
-      stride: Int
-  ) extends Iterator[StructRef[Fields]]:
-    private var index = 0
-    private val len = arr._2
-    private val view = arr._1
-
-    inline def hasNext: Boolean = index < len
-
-    inline def next(): StructRef[Fields] =
-      val current = index
-      index += 1
-      (view, current * stride)
-
   extension [Fields <: Tuple](arr: StructArray[Fields])
     inline def length: Int = arr._2
     inline def stride: Int = constValue[TupleSize[Fields]]
@@ -326,44 +308,8 @@ object StructArray:
     inline def apply(index: Int): StructRef[Fields] =
       (arr._1, index * constValue[TupleSize[Fields]])
 
-    /** Returns an Iterator for this StructArray. Enables for-comprehensions and
-      * passing to functions expecting Iterable[T].
-      *
-      * Performance: ~5-10% overhead compared to manual indexing due to virtual
-      * dispatch through Iterator trait.
-      *
-      * Example:
-      * {{{
-      * for p <- particles do
-      *   p(0) := 100.0f
-      * }}}
-      */
-    inline def iterator: Iterator[StructRef[Fields]] =
-      new StructArrayIterator(arr, constValue[TupleSize[Fields]])
-
-    /** Inline foreach - zero-cost iteration for performance-critical loops.
-      * Compiles to an optimized while loop with no iterator allocation.
-      *
-      * Performance: 0-2% overhead, essentially same as manual while loop.
-      *
-      * Example:
-      * {{{
-      * particles.foreach { p =>
-      *   p(0) := p(0).get * 0.99f
-      * }
-      * }}}
-      */
-    inline def foreach(f: StructRef[Fields] => Unit): Unit =
-      var i = 0
-      val len = arr._2
-      val view = arr._1
-      val stride = constValue[TupleSize[Fields]]
-      while i < len do
-        f((view, i * stride))
-        i += 1
-
     /** Returns a Range of valid indices for this array. Enables idiomatic
-      * index-based iteration.
+      * index-based iteration for maximum performance.
       *
       * Performance: Zero-cost - Range is lazy and efficient.
       *
@@ -375,36 +321,43 @@ object StructArray:
       */
     inline def indices: Range = 0 until arr.length
 
-    /** withFilter support for for-comprehensions with guards. Delegates to
-      * iterator.withFilter for compatibility.
-      */
-    inline def withFilter(
-        p: StructRef[Fields] => Boolean
-    ): Iterator[StructRef[Fields]] =
-      arr.iterator.withFilter(p)
+  /** Iterator implementation for StructArray - enables for-comprehensions and
+    * Iterable interop. When stride is not provided (or -1), it's computed at
+    * runtime from buffer size.
+    */
+  final class StructArrayIterator[Fields <: Tuple](
+      arr: StructArray[Fields],
+      stride: Int = -1
+  ) extends Iterator[StructRef[Fields]]:
+    private var index = 0
+    private val len = arr._2
+    private val view = arr._1
+    private val actualStride =
+      if stride >= 0 then stride
+      else if len == 0 then 0
+      else view.buffer.byteLength / len
 
-    /** map support for for-yield comprehensions. Delegates to iterator.map for
-      * compatibility.
-      */
-    inline def map[B](f: StructRef[Fields] => B): Iterator[B] =
-      arr.iterator.map(f)
+    inline def hasNext: Boolean = index < len
 
-    /** flatMap support for nested for-comprehensions. Delegates to
-      * iterator.flatMap for compatibility.
-      */
-    inline def flatMap[B](
-        f: StructRef[Fields] => IterableOnce[B]
-    ): Iterator[B] =
-      arr.iterator.flatMap(f)
+    inline def next(): StructRef[Fields] =
+      val current = index
+      index += 1
+      (view, current * actualStride)
 
-    /** Implicit conversion to Iterable for passing to functions expecting
-      * Iterable[T]. This allows StructArray to be used wherever Iterable is
-      * expected.
-      */
-    @annotation.nowarn("msg=New anonymous class definition will be duplicated")
-    inline def toIterable: Iterable[StructRef[Fields]] =
+  /** Implicit conversion to Iterable enables all collection operations (map,
+    * flatMap, withFilter, etc.) without explicit method definitions. This
+    * allows StructArray to work seamlessly with for-comprehensions and be
+    * passed to functions expecting Iterable[T].
+    *
+    * The conversion wraps the array in an Iterable. The iterator computes
+    * stride at runtime, adding minimal overhead.
+    */
+  given [Fields <: Tuple]
+      : Conversion[StructArray[Fields], Iterable[StructRef[Fields]]] with
+    def apply(arr: StructArray[Fields]): Iterable[StructRef[Fields]] =
       new Iterable[StructRef[Fields]]:
-        def iterator: Iterator[StructRef[Fields]] = arr.iterator
+        def iterator: Iterator[StructRef[Fields]] =
+          new StructArrayIterator(arr)
 
 // =============================================================================
 // struct[] factory - convenience wrapper

@@ -756,7 +756,7 @@ class BufferDataTest extends FunSuite:
       for item <- items do sum += item(0).get
       sum
 
-    val result = sumFirstComponents(vectors.toIterable)
+    val result = sumFirstComponents(vectors)
     assertEqualsFloat(result, (0 until 5).map(_.toFloat).sum, 0.001f)
 
   test("iterator map filter"):
