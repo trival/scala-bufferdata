@@ -578,3 +578,230 @@ class BufferDataTest extends FunSuite:
       math.abs(actual - expected) <= delta,
       s"Expected ~$expected within $delta, got $actual"
     )
+
+  // ==========================================================================
+  // Iterator and For-Comprehension Tests
+  // ==========================================================================
+
+  test("for-comprehension basic iteration"):
+    type Particle = (F32, F32, U8)
+    val particles = StructArray.allocate[Particle](10)
+
+    // Initialize with direct indexing
+    for i <- 0 until 10 do
+      particles(i)(0) := i.toFloat * 2.0f
+      particles(i)(1) := i.toFloat * 3.0f
+      particles(i)(2) := (i * 10).toShort
+
+    // Read back with for-comprehension
+    var count = 0
+    var sum = 0.0f
+    for p <- particles do
+      sum += p(0).get
+      count += 1
+
+    assertEquals(count, 10)
+    assertEqualsFloat(sum, (0 until 10).map(_ * 2.0f).sum, 0.001f)
+
+  test("for-comprehension with guard"):
+    type Particle = (F32, U8)
+    val particles = StructArray.allocate[Particle](10)
+
+    // Initialize
+    for i <- 0 until 10 do
+      particles(i)(0) := i.toFloat
+      particles(i)(1) := (if i % 2 == 0 then 100 else 0).toShort
+
+    // Filter with guard
+    var evenCount = 0
+    for p <- particles if p(1).get > 0 do evenCount += 1
+
+    assertEquals(evenCount, 5)
+
+  test("for-comprehension yield"):
+    type Vec2 = (F32, F32)
+    val vectors = StructArray.allocate[Vec2](5)
+
+    // Initialize
+    for i <- 0 until 5 do
+      vectors(i)(0) := i.toFloat
+      vectors(i)(1) := i.toFloat * 2.0f
+
+    // Collect with yield
+    val xValues = (for v <- vectors yield v(0).get).toSeq
+
+    assertEquals(xValues.length, 5)
+    assertEqualsFloat(xValues(0), 0.0f, 0.001f)
+    assertEqualsFloat(xValues(4), 4.0f, 0.001f)
+
+  test("for-comprehension nested"):
+    type Vec2 = (F32, F32)
+    val vectors1 = StructArray.allocate[Vec2](3)
+    val vectors2 = StructArray.allocate[Vec2](3)
+
+    for i <- 0 until 3 do
+      vectors1(i)(0) := i.toFloat
+      vectors1(i)(1) := 0.0f
+      vectors2(i)(0) := 0.0f
+      vectors2(i)(1) := i.toFloat
+
+    // Nested for-comprehension
+    val pairs = (for
+      v1 <- vectors1
+      v2 <- vectors2
+    yield (v1(0).get, v2(1).get)).toSeq
+
+    assertEquals(pairs.length, 9)
+    assertEqualsFloat(pairs(0)._1, 0.0f, 0.001f)
+    assertEqualsFloat(pairs(8)._2, 2.0f, 0.001f)
+
+  // ==========================================================================
+  // Inline Foreach Tests
+  // ==========================================================================
+
+  test("inline foreach"):
+    type Particle = (F32, F32, U8)
+    val particles = StructArray.allocate[Particle](10)
+
+    // Initialize
+    for i <- 0 until 10 do
+      particles(i)(0) := i.toFloat
+      particles(i)(1) := i.toFloat * 2.0f
+      particles(i)(2) := 100.toShort
+
+    // Update with inline foreach
+    particles.foreach { p =>
+      p(0) := p(0).get * 0.5f
+      p(1) := p(1).get * 0.5f
+    }
+
+    // Verify
+    for i <- 0 until 10 do
+      assertEqualsFloat(particles(i)(0).get, i.toFloat * 0.5f, 0.001f)
+      assertEqualsFloat(particles(i)(1).get, i.toFloat, 0.001f)
+
+  test("inline foreach side effects"):
+    type Vec2 = (F32, F32)
+    val vectors = StructArray.allocate[Vec2](5)
+
+    for i <- 0 until 5 do
+      vectors(i)(0) := i.toFloat
+      vectors(i)(1) := i.toFloat
+
+    var sum = 0.0f
+    vectors.foreach { v =>
+      sum += v(0).get + v(1).get
+    }
+
+    assertEqualsFloat(sum, (0 until 5).map(i => i * 2.0f).sum, 0.001f)
+
+  test("inline foreach vs manual loop"):
+    type Particle = (F32, U8)
+    val particles1 = StructArray.allocate[Particle](100)
+    val particles2 = StructArray.allocate[Particle](100)
+
+    // Initialize both identically
+    for i <- 0 until 100 do
+      particles1(i)(0) := i.toFloat
+      particles1(i)(1) := (i % 256).toShort
+      particles2(i)(0) := i.toFloat
+      particles2(i)(1) := (i % 256).toShort
+
+    // Update with foreach
+    particles1.foreach { p =>
+      p(0) := p(0).get * 2.0f
+    }
+
+    // Update with manual loop
+    var i = 0
+    while i < particles2.length do
+      particles2(i)(0) := particles2(i)(0).get * 2.0f
+      i += 1
+
+    // Results should be identical
+    for i <- 0 until 100 do
+      assertEqualsFloat(particles1(i)(0).get, particles2(i)(0).get, 0.001f)
+
+  // ==========================================================================
+  // Indices Tests
+  // ==========================================================================
+
+  test("indices"):
+    type Vec2 = (F32, F32)
+    val vectors = StructArray.allocate[Vec2](10)
+
+    for i <- vectors.indices do
+      vectors(i)(0) := i.toFloat
+      vectors(i)(1) := i.toFloat * 2.0f
+
+    for i <- vectors.indices do
+      assertEqualsFloat(vectors(i)(0).get, i.toFloat, 0.001f)
+      assertEqualsFloat(vectors(i)(1).get, i.toFloat * 2.0f, 0.001f)
+
+  // ==========================================================================
+  // Iterable Interop Tests
+  // ==========================================================================
+
+  test("pass to iterable function"):
+    type Vec2 = (F32, F32)
+    val vectors = StructArray.allocate[Vec2](5)
+
+    for i <- 0 until 5 do
+      vectors(i)(0) := i.toFloat
+      vectors(i)(1) := i.toFloat * 2.0f
+
+    // Function expecting Iterable
+    def sumFirstComponents(items: Iterable[StructRef[(F32, F32)]]): Float =
+      var sum = 0.0f
+      for item <- items do sum += item(0).get
+      sum
+
+    val result = sumFirstComponents(vectors.toIterable)
+    assertEqualsFloat(result, (0 until 5).map(_.toFloat).sum, 0.001f)
+
+  test("iterator map filter"):
+    type Particle = (F32, U8)
+    val particles = StructArray.allocate[Particle](10)
+
+    for i <- 0 until 10 do
+      particles(i)(0) := i.toFloat
+      particles(i)(1) := (if i % 2 == 0 then 100 else 0).toShort
+
+    // Use iterator methods
+    val evenPositions = particles.iterator
+      .filter(p => p(1).get > 0)
+      .map(p => p(0).get)
+      .toSeq
+
+    assertEquals(evenPositions.length, 5)
+    assertEqualsFloat(evenPositions(0), 0.0f, 0.001f)
+    assertEqualsFloat(evenPositions(1), 2.0f, 0.001f)
+
+  test("hittable list pattern"):
+    // Simulate the HittableList pattern from the plan
+
+    trait Hittable:
+      def value: Float
+
+    // Wrapper that makes StructRef implement Hittable
+    class HittableWrapper(ref: StructRef[F32 *: EmptyTuple]) extends Hittable:
+      def value: Float = ref(0).get
+
+    class HittableList(items: Iterable[Hittable]):
+      def sum: Float =
+        var total = 0.0f
+        for item <- items do total += item.value
+        total
+
+    // Create StructArray and wrap elements
+    type ValueStruct = F32 *: EmptyTuple
+    val values = StructArray.allocate[ValueStruct](5)
+
+    for i <- 0 until 5 do values(i)(0) := i.toFloat * 10.0f
+
+    // Pass wrapped iterator to HittableList
+    val hittables = new HittableList(
+      values.iterator.map(ref => new HittableWrapper(ref)).toSeq
+    )
+
+    assertEqualsFloat(hittables.sum, (0 until 5).map(_ * 10.0f).sum, 0.001f)
