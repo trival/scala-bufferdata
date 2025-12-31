@@ -3,5 +3,6 @@
 
 //> using jsModuleKind es
 //> using jsVersion 1.20.1
+//> using jsMode full
 
 //> using test.dep org.scalameta::munit::1.2.1
