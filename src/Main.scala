@@ -2,7 +2,13 @@ package example
 
 import scala.scalajs.js
 import scala.scalajs.js.annotation.JSExportTopLevel
+import scala.scalajs.js.typedarray.ArrayBuffer
 import bufferdata.*
+import raytracer.scene.*
+import raytracer.render.*
+import raytracer.material.*
+import raytracer.vector.*
+import raytracer.hittable.given
 
 @main def app(): Unit =
   println("Hello from Scala.js!")
@@ -65,3 +71,20 @@ object BufferDataDemo:
         u8 = particles(count - 1)(1).get
       )
     )
+
+@JSExportTopLevel("renderRaytracer")
+def renderRaytracer(width: Int, height: Int): ArrayBuffer =
+  val scene = createDefaultScene()
+  val samplesPerPixel = 25
+  val maxDepth = 15
+
+  val pixels = renderImage(
+    world = scene.world,
+    camera = scene.camera,
+    width = width,
+    height = height,
+    samplesPerPixel = samplesPerPixel,
+    maxDepth = maxDepth
+  )
+
+  pixels.arrayBuffer
