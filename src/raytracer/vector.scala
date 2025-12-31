@@ -201,6 +201,18 @@ extension (v: Vec3d)
   inline def normalize(): Unit =
     v.normalize(v)
 
+  // Reflect vector around normal: v - 2 * dot(v, n) * n
+  inline def reflect(n: Vec3d, target: Vec3d): Unit =
+    val d = v.dot(n) * 2.0
+    n.mul(d, target)
+    v.sub(target, target)
+
+  // Copy vector values to another buffer
+  inline def copyTo(target: Vec3d): Unit =
+    target.x := v.x()
+    target.y := v.y()
+    target.z := v.z()
+
   inline def lerp(other: Vec3d, t: Double, target: Vec3d): Unit =
     val oneMinusT = 1.0 - t
     target.x := v.x() * oneMinusT + other.x() * t
