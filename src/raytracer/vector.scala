@@ -60,6 +60,10 @@ extension (v: Vec3d)
   inline def y = v(1)
   inline def z = v(2)
 
+  inline def r = v(0)
+  inline def g = v(1)
+  inline def b = v(2)
+
   inline def set(x: Double, y: Double, z: Double): Unit =
     v.x := x
     v.y := y
