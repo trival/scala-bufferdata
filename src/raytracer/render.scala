@@ -59,6 +59,9 @@ object Renderer:
       aspectRatio: Double
   ): Unit =
     val camera = renderCache.camera
+
+    camera.position.set(origin._1, origin._2, origin._3)
+
     val viewportHeight = 2.0
     val viewportWidth = aspectRatio * viewportHeight
 
@@ -67,14 +70,11 @@ object Renderer:
 
     val temp = renderCache.temp
     val temp2 = renderCache.temp2
-    // val lowerLeft =
-    //   origin - (horizontal / 2.0) - (vertical / 2.0) - Vec3d(0, 0, focalLength)
-    camera.position.set(origin._1, origin._2, origin._3)
 
     temp := camera.position
     camera.horizontal.div(2.0, temp2)
     temp =- temp2
-    camera.vertical.div(3.0, temp2)
+    camera.vertical.div(2.0, temp2)
     temp =- temp2
     temp2.set(0, 0, focalLength)
     temp =- temp2

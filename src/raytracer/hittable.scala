@@ -7,7 +7,6 @@ import raytracer.hit.*
 import raytracer.sphere.*
 import raytracer.material.{copyTo as copyMaterial, MaterialType, *}
 import scala.language.implicitConversions
-import raytracer.render.Renderer.renderCache
 
 trait Hittable[T]:
   def rayHit(

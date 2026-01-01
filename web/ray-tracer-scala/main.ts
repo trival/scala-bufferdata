@@ -29,6 +29,8 @@ renderBtn.addEventListener("click", () => {
       );
     }
 
+    console.log(pixels);
+
     const imageData = new ImageData(pixels, width, height);
     ctx.putImageData(imageData, 0, 0);
 
