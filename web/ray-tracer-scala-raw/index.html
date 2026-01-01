@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scala.js Raytracer (Pure Scala)</title>
+    <style>
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        max-width: 800px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        background: #f5f5f5;
+      }
+      h1 {
+        color: #333;
+      }
+      .info {
+        background: white;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .info p {
+        margin: 0.5rem 0;
+        color: #666;
+      }
+      canvas {
+        border: 1px solid #ccc;
+        display: block;
+        margin: 1rem 0;
+        background: white;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      button {
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+        cursor: pointer;
+        background: #0066cc;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        font-weight: 500;
+        transition: background 0.2s;
+      }
+      button:hover:not(:disabled) {
+        background: #0052a3;
+      }
+      button:disabled {
+        background: #999;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Scala.js Raytracer (Pure Scala)</h1>
+
+    <div class="info">
+      <p>
+        <strong>Engine:</strong> Pure Scala case classes + Scala.js (no bufferdata), rendered via
+        <code>renderRaytracerRaw(width, height)</code>
+      </p>
+      <p>
+        <strong>Config:</strong> 400×300 px, 100 samples/pixel, 20 max bounces
+      </p>
+      <p>
+        <strong>Note:</strong> This version mirrors the TypeScript implementation exactly for direct performance comparison.
+      </p>
+    </div>
+
+    <button id="render-btn">Render Scene</button>
+    <canvas id="canvas"></canvas>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

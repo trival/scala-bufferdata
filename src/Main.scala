@@ -87,3 +87,21 @@ def renderRaytracer(width: Int, height: Int): ArrayBuffer =
   )
 
   pixels.arrayBuffer
+
+// Export raw raytracer (pure Scala implementation without bufferdata)
+// Matches TypeScript version EXACTLY: origin=(0,0,1), focalLength=1.9, samples=100, depth=20
+@JSExportTopLevel("renderRaytracerRaw")
+def renderRaytracerRaw(width: Int, height: Int): js.typedarray.Float64Array =
+  import raytracer_raw.*
+
+  val scene = Scene.createScene()
+
+  Render.renderImage(
+    world = scene,
+    width = width,
+    height = height,
+    focalLength = 1.9,
+    origin = Vec3(0, 0, 1),
+    samplesPerPixel = 100,
+    maxRayBounces = 20
+  )
