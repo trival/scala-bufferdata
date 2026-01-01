@@ -201,7 +201,9 @@ object Renderer:
           val v = (height - y - 1 + Math
             .random()) / height // flip vertically to match TS output
           getRay(renderCache.camera, u, v, ray)
-          rayColor(ray, world, maxDepth, color)
+          val tmp = renderCache.temp2
+          rayColor(ray, world, maxDepth, tmp)
+          color =+ tmp
           s += 1
 
         color =/ samplesPerPixel.toDouble
