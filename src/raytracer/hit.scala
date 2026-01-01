@@ -20,7 +20,7 @@ extension (h: Hit)
 
   def copyFrom(other: Hit): Unit =
     h.t := other.t()
-    other.pos.copyTo(h.pos)
-    other.normal.copyTo(h.normal)
+    h.pos := other.pos
+    h.normal := other.normal
     h.frontFace := other.frontFace()
     other.material.copyTo(h.material)

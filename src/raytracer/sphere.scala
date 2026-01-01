@@ -21,10 +21,10 @@ object Sphere:
       fuzz: Double = 0.0
   ): Sphere =
     val s = Sphere()
-    center.copyTo(s.center)
+    s.center := center
     s.radius := radius
     s.material.materialType := materialType.toShort
-    color.copyTo(s.material.color)
+    s.material.color := color
     s.material.fuzz := fuzz
     s
 

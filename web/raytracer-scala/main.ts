@@ -1,4 +1,3 @@
-// Types for the Scala.js export live in render-raytracer.d.ts in this folder.
 import { renderRaytracer } from "../../dist/main.js";
 
 const width = 400;
@@ -26,7 +25,7 @@ renderBtn.addEventListener("click", () => {
 
     if (pixels.length !== width * height * 4) {
       console.warn(
-        `Unexpected buffer size: got ${pixels.length}, expected ${width * height * 4}`
+        `Unexpected buffer size: got ${pixels.length}, expected ${width * height * 4}`,
       );
     }
 

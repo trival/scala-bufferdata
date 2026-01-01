@@ -72,6 +72,14 @@ extension (v: Vec3d)
   inline def set(num: Double): Unit =
     v.set(num, num, num)
 
+  inline def set(other: Vec3d): Unit =
+    v.x := other.x()
+    v.y := other.y()
+    v.z := other.z()
+
+  inline def :=(other: Vec3d): Unit =
+    v.set(other)
+
   inline def setRandom(): Unit =
     Vec3d.random(v)
 
@@ -206,12 +214,6 @@ extension (v: Vec3d)
     val d = v.dot(n) * 2.0
     n.mul(d, target)
     v.sub(target, target)
-
-  // Copy vector values to another buffer
-  inline def copyTo(target: Vec3d): Unit =
-    target.x := v.x()
-    target.y := v.y()
-    target.z := v.z()
 
   inline def lerp(other: Vec3d, t: Double, target: Vec3d): Unit =
     val oneMinusT = 1.0 - t

@@ -14,8 +14,8 @@ object Ray:
 
   inline def apply(origin: Vec3d, direction: Vec3d): Ray =
     val r = Ray()
-    origin.copyTo(r.origin)
-    direction.copyTo(r.direction)
+    r.origin := origin
+    r.direction := direction
     r
 
 extension (ray: Ray)
@@ -27,5 +27,5 @@ extension (ray: Ray)
     target =+ ray.origin
 
   inline def copyFrom(other: Ray): Unit =
-    other.origin.copyTo(ray.origin)
-    other.direction.copyTo(ray.direction)
+    ray.origin := other.origin
+    ray.direction := other.direction

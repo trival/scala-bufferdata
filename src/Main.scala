@@ -75,10 +75,10 @@ object BufferDataDemo:
 @JSExportTopLevel("renderRaytracer")
 def renderRaytracer(width: Int, height: Int): ArrayBuffer =
   val scene = createDefaultScene()
-  val samplesPerPixel = 25
-  val maxDepth = 15
+  val samplesPerPixel = 100
+  val maxDepth = 20
 
-  val pixels = renderImage(
+  val pixels = Renderer.renderImage(
     world = scene.world,
     camera = scene.camera,
     width = width,
