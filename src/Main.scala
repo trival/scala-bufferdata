@@ -80,7 +80,6 @@ def renderRaytracer(width: Int, height: Int): ArrayBuffer =
 
   val pixels = Renderer.renderImage(
     world = scene.world,
-    camera = scene.camera,
     width = width,
     height = height,
     samplesPerPixel = samplesPerPixel,

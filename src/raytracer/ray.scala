@@ -9,15 +9,6 @@ val RayStruct = struct[RaySchema]
 
 type Ray = StructRef[RaySchema]
 
-object Ray:
-  inline def apply(): Ray = RayStruct()
-
-  inline def apply(origin: Vec3d, direction: Vec3d): Ray =
-    val r = Ray()
-    r.origin := origin
-    r.direction := direction
-    r
-
 extension (ray: Ray)
   inline def origin = ray(0)
   inline def direction = ray(1)

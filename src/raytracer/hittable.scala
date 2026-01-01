@@ -1,12 +1,13 @@
 package raytracer.hittable
 
 import bufferdata.*
-import raytracer.vector.{copyTo as copyVec3d, *}
+import raytracer.vector.*
 import raytracer.ray.*
 import raytracer.hit.*
 import raytracer.sphere.*
 import raytracer.material.{copyTo as copyMaterial, MaterialType, *}
 import scala.language.implicitConversions
+import raytracer.render.Renderer.renderCache
 
 trait Hittable[T]:
   def rayHit(
@@ -35,7 +36,10 @@ given Hittable[Sphere]:
       hit: Hit
   ): Boolean =
     // Solve |ray.at(t) - center|^2 = radius^2
-    val oc = ray.origin - sphere.center
+    val oc = hit.pos // Temp vec borrored from pos
+    oc := ray.origin
+    oc =- sphere.center
+
     val a = ray.direction.lengthSquared
     val halfB = oc.dot(ray.direction)
     val c = oc.lengthSquared - sphere.radius() * sphere.radius()
@@ -51,14 +55,14 @@ given Hittable[Sphere]:
       if root < minT || root > maxT then return false
 
     hit.t := root
-    ray.at(root, hit.pos)
+    ray.at(root, hit.pos) // reassign hit.pos
 
-    val outwardNormal = (hit.pos - sphere.center) / sphere.radius()
-    val frontFace = ray.direction.dot(outwardNormal) < 0
+    hit.pos.sub(sphere.center, hit.normal)
+    hit.normal =/ sphere.radius()
+    val frontFace = ray.direction.dot(hit.normal) < 0
     hit.frontFace := (if frontFace then 1 else 0).toShort
 
-    if frontFace then outwardNormal.copyVec3d(hit.normal)
-    else (-outwardNormal).copyVec3d(hit.normal)
+    if !frontFace then hit.normal =* -1.0
 
     sphere.material.copyMaterial(hit.material)
 

@@ -12,17 +12,6 @@ val Vec3dStruct = struct[Vec3dSchema]
 type Vec3d = StructRef[Vec3dSchema]
 
 object Vec3d:
-  inline def apply(): Vec3d = Vec3dStruct()
-
-  inline def apply(x: Double, y: Double, z: Double): Vec3d =
-    val v = Vec3d()
-    v.set(x, y, z)
-    v
-
-  inline def apply(value: Double): Vec3d =
-    Vec3d(value, value, value)
-
-  // Helper functions
 
   inline def random(target: Vec3d): Unit =
     target.set(Math.random(), Math.random(), Math.random())
@@ -31,11 +20,6 @@ object Vec3d:
     target.x := min.x() + Math.random() * (max.x() - min.x())
     target.y := min.y() + Math.random() * (max.y() - min.y())
     target.z := min.z() + Math.random() * (max.z() - min.z())
-
-  inline def randomRange(min: Vec3d, max: Vec3d): Vec3d =
-    val res = Vec3d()
-    randomRange(min, max, res)
-    res
 
   def randomInUnitSphere(target: Vec3d): Unit =
     var l = 2.0
@@ -100,11 +84,6 @@ extension (v: Vec3d)
     target.y := v.y() + other.y()
     target.z := v.z() + other.z()
 
-  inline def +(other: Vec3d): Vec3d =
-    val res = Vec3d()
-    v.add(other, res)
-    res
-
   inline def =+(other: Vec3d): Unit =
     v.add(other, v)
 
@@ -112,11 +91,6 @@ extension (v: Vec3d)
     target.x := v.x() + scalar
     target.y := v.y() + scalar
     target.z := v.z() + scalar
-
-  inline def +(scalar: Double): Vec3d =
-    val res = Vec3d()
-    v.add(scalar, res)
-    res
 
   inline def =+(scalar: Double): Unit =
     v.add(scalar, v)
@@ -126,11 +100,6 @@ extension (v: Vec3d)
     target.y := v.y() - other.y()
     target.z := v.z() - other.z()
 
-  inline def -(other: Vec3d): Vec3d =
-    val res = Vec3d()
-    v.sub(other, res)
-    res
-
   inline def =-(other: Vec3d): Unit =
     v.sub(other, v)
 
@@ -138,11 +107,6 @@ extension (v: Vec3d)
     target.x := v.x() - scalar
     target.y := v.y() - scalar
     target.z := v.z() - scalar
-
-  inline def -(scalar: Double): Vec3d =
-    val res = Vec3d()
-    v.sub(scalar, res)
-    res
 
   inline def =-(scalar: Double): Unit =
     v.sub(scalar, v)
@@ -152,11 +116,6 @@ extension (v: Vec3d)
     target.y := v.y() * other.y()
     target.z := v.z() * other.z()
 
-  inline def *(other: Vec3d): Vec3d =
-    val res = Vec3d()
-    v.mul(other, res)
-    res
-
   inline def =*(other: Vec3d): Unit =
     v.mul(other, v)
 
@@ -165,21 +124,11 @@ extension (v: Vec3d)
     target.y := v.y() * scalar
     target.z := v.z() * scalar
 
-  inline def *(scalar: Double): Vec3d =
-    val res = Vec3d()
-    v.mul(scalar, res)
-    res
-
   inline def =*(scalar: Double): Unit =
     v.mul(scalar, v)
 
   inline def div(scalar: Double, target: Vec3d): Unit =
     v.mul(1.0 / scalar, target)
-
-  inline def /(scalar: Double): Vec3d =
-    val res = Vec3d()
-    v.div(scalar, res)
-    res
 
   inline def =/(scalar: Double): Unit =
     v.div(scalar, v)
@@ -191,11 +140,6 @@ extension (v: Vec3d)
     target.x := v.y() * other.z() - v.z() * other.y()
     target.y := v.z() * other.x() - v.x() * other.z()
     target.z := v.x() * other.y() - v.y() * other.x()
-
-  inline def cross(other: Vec3d): Vec3d =
-    val res = Vec3d()
-    v.cross(other, res)
-    res
 
   inline def lengthSquared: Double =
     v.dot(v)
@@ -221,17 +165,5 @@ extension (v: Vec3d)
     target.y := v.y() * oneMinusT + other.y() * t
     target.z := v.z() * oneMinusT + other.z() * t
 
-  inline def lerp(other: Vec3d, t: Double): Vec3d =
-    val res = Vec3d()
-    v.lerp(other, t, res)
-    res
-
   inline def nearZero: Boolean =
     v.lengthSquared < 1e-6
-
-  inline def unary_- : Vec3d =
-    v * -1.0
-
-extension (scalar: Double)
-  inline def *(v: Vec3d): Vec3d =
-    v * scalar

@@ -12,6 +12,16 @@ import numHelpers.*
 
 object Renderer:
 
+  type CameraSchema = (Vec3dSchema, Vec3dSchema, Vec3dSchema, Vec3dSchema)
+  val CameraStruct = struct[CameraSchema]
+  type Camera = StructRef[CameraSchema]
+
+  extension (c: Camera)
+    inline def position = c(0)
+    inline def lowerLeft = c(1)
+    inline def horizontal = c(2)
+    inline def vertical = c(3)
+
   // temp, skyBlue, skyWhite
   type RendererCacheSchema =
     (
@@ -22,7 +32,8 @@ object Renderer:
         RaySchema,
         RaySchema,
         HitSchema,
-        Vec3dSchema
+        Vec3dSchema,
+        CameraSchema
     )
   type RendererCache = StructRef[RendererCacheSchema]
 
@@ -35,11 +46,40 @@ object Renderer:
     inline def scatteredRay = rc(5)
     inline def currentHit = rc(6)
     inline def attenuation = rc(7)
+    inline def camera = rc(8)
 
   val renderCache = struct[RendererCacheSchema]()
 
   renderCache.skyBlue.set(0.5, 0.7, 1.0)
   renderCache.skyWhite.set(1.0, 1.0, 1.0)
+
+  def setCamera(
+      origin: (Double, Double, Double),
+      focalLength: Double,
+      aspectRatio: Double
+  ): Unit =
+    val camera = renderCache.camera
+    val viewportHeight = 2.0
+    val viewportWidth = aspectRatio * viewportHeight
+
+    camera.horizontal.set(viewportWidth, 0, 0)
+    camera.vertical.set(0, viewportHeight, 0)
+
+    val temp = renderCache.temp
+    val temp2 = renderCache.temp2
+    // val lowerLeft =
+    //   origin - (horizontal / 2.0) - (vertical / 2.0) - Vec3d(0, 0, focalLength)
+    camera.position.set(origin._1, origin._2, origin._3)
+
+    temp := camera.position
+    camera.horizontal.div(2.0, temp2)
+    temp =- temp2
+    camera.vertical.div(3.0, temp2)
+    temp =- temp2
+    temp2.set(0, 0, focalLength)
+    temp =- temp2
+
+    camera.lowerLeft := temp
 
   inline def skyColor(direction: Vec3d, target: Vec3d) =
     val unitDir = renderCache.temp
@@ -112,31 +152,8 @@ object Renderer:
 
     target.set(0)
 
-  case class Camera(
-      origin: Vec3d,
-      lowerLeft: Vec3d,
-      horizontal: Vec3d,
-      vertical: Vec3d
-  )
-
-  def createCamera(
-      origin: Vec3d,
-      focalLength: Double,
-      aspectRatio: Double
-  ): Camera =
-    val viewportHeight = 2.0
-    val viewportWidth = aspectRatio * viewportHeight
-
-    val horizontal = Vec3d(viewportWidth, 0, 0)
-    val vertical = Vec3d(0, viewportHeight, 0)
-
-    val lowerLeft =
-      origin - (horizontal / 2.0) - (vertical / 2.0) - Vec3d(0, 0, focalLength)
-
-    Camera(origin, lowerLeft, horizontal, vertical)
-
   inline def getRay(camera: Camera, u: Double, v: Double, ray: Ray): Unit =
-    ray.origin := camera.origin
+    ray.origin := camera.position
 
     val tmp = renderCache.temp
     val tmp2 = renderCache.temp2
@@ -151,7 +168,7 @@ object Renderer:
     tmp2 =* v
     tmp =+ tmp2
 
-    tmp =- camera.origin
+    tmp =- camera.position
 
     ray.direction := tmp
 
@@ -162,7 +179,6 @@ object Renderer:
 
   def renderImage[T: Hittable](
       world: T,
-      camera: Camera,
       width: Int,
       height: Int,
       samplesPerPixel: Int,
@@ -170,7 +186,7 @@ object Renderer:
   ): StructArray[ColorRGBASchema] =
     val pixels = struct[ColorRGBASchema].allocate(width * height)
     val ray = renderCache.currentRay
-    val color = Vec3d()
+    val color = Vec3dStruct.allocate(1)(0)
 
     var y = 0
     while y < height do
@@ -184,7 +200,7 @@ object Renderer:
           val u = (x + Math.random()) / width
           val v = (height - y - 1 + Math
             .random()) / height // flip vertically to match TS output
-          getRay(camera, u, v, ray)
+          getRay(renderCache.camera, u, v, ray)
           rayColor(ray, world, maxDepth, color)
           s += 1
 

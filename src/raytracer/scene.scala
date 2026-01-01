@@ -8,8 +8,7 @@ import raytracer.render.Renderer
 import raytracer.render
 
 case class Scene(
-    world: StructArray[SphereSchema],
-    camera: Renderer.Camera
+    world: StructArray[SphereSchema]
 )
 
 def createDefaultScene(): Scene =
@@ -43,10 +42,10 @@ def createDefaultScene(): Scene =
   spheres(3).material.color.set(0.5, 0.5, 0.5)
   spheres(3).material.fuzz := 0.0
 
-  val camera = Renderer.createCamera(
-    origin = Vec3d(0, 0, 1),
+  Renderer.setCamera(
+    origin = (0, 0, 1),
     focalLength = 1.9,
     aspectRatio = 4.0 / 3.0
   )
 
-  Scene(spheres, camera)
+  Scene(spheres)

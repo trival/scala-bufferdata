@@ -1,7 +1,7 @@
 package raytracer.material
 
 import bufferdata.*
-import raytracer.vector.{copyTo as copyVec3d, *}
+import raytracer.vector.*
 
 // Material schema: type field is inside the material data
 type MaterialSchema = (U8, Vec3dSchema, F64)
@@ -34,7 +34,7 @@ object Material:
   ): Material =
     val m = Material()
     m.materialType := materialType.toShort
-    color.copyVec3d(m.color)
+    m.color := color
     m.fuzz := fuzz
     m
 
@@ -51,5 +51,5 @@ extension (m: Material)
 
   inline def copyTo(target: Material): Unit =
     target.materialType := m.materialType()
-    m.color.copyVec3d(target.color)
+    target.color := m.color
     target.fuzz := m.fuzz()
